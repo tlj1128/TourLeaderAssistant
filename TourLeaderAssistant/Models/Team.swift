@@ -11,10 +11,10 @@ class Team {
     var returnDate: Date
     var paxCount: Int?
     var roomCount: String?
-    var flightInfo: String?
     var status: TeamStatus
     var calendarEventID: String?
     var notes: String?
+    var countryCodesData: String  // JSON 陣列，例如 ["JP","FR","DE"]
     var createdAt: Date
 
     init(
@@ -34,7 +34,24 @@ class Team {
             to: departureDate
         ) ?? departureDate
         self.status = .preparing
+        self.countryCodesData = "[]"
         self.createdAt = Date()
+    }
+
+    // Computed property 方便存取
+    var countryCodes: [String] {
+        get {
+            guard let data = countryCodesData.data(using: .utf8),
+                  let codes = try? JSONDecoder().decode([String].self, from: data)
+            else { return [] }
+            return codes
+        }
+        set {
+            guard let data = try? JSONEncoder().encode(newValue),
+                  let string = String(data: data, encoding: .utf8)
+            else { return }
+            countryCodesData = string
+        }
     }
 }
 

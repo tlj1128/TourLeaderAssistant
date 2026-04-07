@@ -1,32 +1,41 @@
-//
-//  TourLeaderAssistantApp.swift
-//  TourLeaderAssistant
-//
-//  Created by 杜立仁 on 2026/3/30.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct TourLeaderAssistantApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    let container: ModelContainer
 
+    init() {
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            container = try ModelContainer(for:
+                Team.self,
+                TourFund.self,
+                Expense.self,
+                Income.self,
+                Journal.self,
+                TourDocument.self,
+                Country.self,
+                City.self,
+                PlaceHotel.self,
+                PlaceRestaurant.self,
+                PlaceAttraction.self,
+                PlacePhoto.self,
+                CustomFundType.self,
+                CustomIncomeType.self
+            )
+            SeedData.seedCountriesIfNeeded(modelContext: container.mainContext)
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            fatalError("無法建立 ModelContainer：\(error)")
         }
-    }()
+        Task {
+            let ok = await SupabaseManager.shared.testConnection()
+            print("Supabase 連線：\(ok ? "成功" : "失敗")")
+        }    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .modelContainer(container)
         }
-        .modelContainer(sharedModelContainer)
     }
 }

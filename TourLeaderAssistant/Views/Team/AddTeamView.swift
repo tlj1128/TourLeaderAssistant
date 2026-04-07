@@ -10,10 +10,13 @@ struct AddTeamView: View {
     @State private var name = ""
     @State private var departureDate = Date()
     @State private var days = 7
-    @State private var addToCalendar = true
+    @State private var selectedCountryCodes: [String] = []
+    @State private var addToCalendar = false
     @State private var availableCalendars: [EKCalendar] = []
     @State private var selectedCalendar: EKCalendar? = nil
     @State private var calendarAccessGranted = false
+    @State private var showingCountryPicker = false
+    @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
     var returnDate: Date {
         Calendar.current.date(byAdding: .day, value: days - 1, to: departureDate) ?? departureDate
@@ -23,18 +26,20 @@ struct AddTeamView: View {
         !tourCode.isEmpty && !name.isEmpty && days > 0
     }
 
+    var selectedCountryFlags: String {
+        selectedCountryCodes.map { $0.flag }.joined(separator: " ")
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("基本資料") {
-                    TextField("團號", text: $tourCode)
-                    TextField("團名／目的地", text: $name)
-                    DatePicker(
-                        "出發日期",
-                        selection: $departureDate,
-                        displayedComponents: .date
-                    )
-                    Stepper("天數：\(days)天", value: $days, in: 1...60)
+                    LabeledTextField(label: "團號", placeholder: "TC20260619TK1", text: $tourCode)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.characters)
+                    LabeledTextField(label: "團名", placeholder: "納米比亞 16 天", text: $name)
+                    DatePicker("出發日期", selection: $departureDate, displayedComponents: .date)
+                    Stepper("天數：\(days) 天", value: $days, in: 1...60)
                 }
 
                 Section {
@@ -44,20 +49,48 @@ struct AddTeamView: View {
                         Text(returnDate.formatted(date: .abbreviated, time: .omitted))
                             .foregroundStyle(.secondary)
                     }
+
+                    Button {
+                        showingCountryPicker = true
+                    } label: {
+                        HStack {
+                            Text("目的地國家")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if selectedCountryCodes.isEmpty {
+                                Text("選填")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text(selectedCountryFlags)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
 
-                Section {
+                Section("行事曆") {
                     Toggle("加入 Apple 行事曆", isOn: $addToCalendar)
 
                     if addToCalendar && calendarAccessGranted && !availableCalendars.isEmpty {
-                        Picker("行事曆", selection: $selectedCalendar) {
-                            ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
-                                HStack {
-                                    Image(systemName: "circle.fill")
-                                        .foregroundStyle(Color(cgColor: cal.cgColor))
+                        ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
+                            Button {
+                                selectedCalendar = cal
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Circle()
+                                        .fill(Color(cgColor: cal.cgColor))
+                                        .frame(width: 12, height: 12)
                                     Text(cal.title)
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    if selectedCalendar?.calendarIdentifier == cal.calendarIdentifier {
+                                        Image(systemName: "checkmark")
+                                            .font(.subheadline).fontWeight(.semibold)
+                                            .foregroundStyle(Color("AppAccent"))
+                                    }
                                 }
-                                .tag(Optional(cal))
                             }
                         }
                     }
@@ -75,8 +108,10 @@ struct AddTeamView: View {
                         .fontWeight(.semibold)
                 }
             }
-            .onAppear {
-                loadCalendars()
+            .onAppear { loadCalendars() }
+            .sheet(isPresented: $showingCountryPicker) {
+                TeamCountryPickerView(selectedCodes: $selectedCountryCodes)
+                    .appDynamicTypeSize(textSizePreference)
             }
         }
     }
@@ -98,6 +133,7 @@ struct AddTeamView: View {
             departureDate: departureDate,
             days: days
         )
+        team.countryCodes = selectedCountryCodes
         modelContext.insert(team)
 
         if addToCalendar, let calendar = selectedCalendar {

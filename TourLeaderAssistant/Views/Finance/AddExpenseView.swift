@@ -7,15 +7,42 @@ struct AddExpenseView: View {
     let team: Team
     var lastExpense: Expense? = nil
 
-    @State private var date = Date()
-    @State private var location = ""
+    @Query private var allCountries: [Country]
+
+    @State private var date: Date
+    @State private var location: String
     @State private var item = ""
     @State private var quantity = "1"
     @State private var amount = ""
-    @State private var currency = "USD"
-    @State private var exchangeRate = ""
+    @State private var currency: String
+    @State private var exchangeRate: String
     @State private var receiptNumber = ""
+    @State private var paymentMethod: PaymentMethod? = nil
     @State private var notes = ""
+
+    init(team: Team, lastExpense: Expense? = nil) {
+        self.team = team
+        self.lastExpense = lastExpense
+        _date = State(initialValue: lastExpense?.date ?? Date())
+        _location = State(initialValue: lastExpense?.location ?? "")
+        _currency = State(initialValue: lastExpense?.currency ?? "USD")
+        _exchangeRate = State(initialValue: lastExpense?.exchangeRate.formatted() ?? "")
+    }
+
+    var suggestedCurrencies: [String] {
+        var result: [String] = []
+        for code in team.countryCodes {
+            if let country = allCountries.first(where: { $0.code == code }),
+               !country.currencyCode.isEmpty,
+               !result.contains(country.currencyCode) {
+                result.append(country.currencyCode)
+            }
+        }
+        for common in ["TWD", "USD", "EUR", "JPY", "GBP"] {
+            if !result.contains(common) { result.append(common) }
+        }
+        return result
+    }
 
     var convertedAmount: Decimal? {
         guard
@@ -46,15 +73,29 @@ struct AddExpenseView: View {
                 }
 
                 Section("金額") {
-                    LabeledTextField(label: "金額", placeholder: "288", text: $amount)
-                        .keyboardType(.decimalPad)
-                    LabeledTextField(label: "數量", placeholder: "1", text: $quantity)
-                        .keyboardType(.decimalPad)
-                    LabeledTextField(label: "幣種", placeholder: "USD", text: $currency)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
-                    LabeledTextField(label: "匯率", placeholder: "15（以零用金為基準）", text: $exchangeRate)
-                        .keyboardType(.decimalPad)
+                    HStack(spacing: 8) {
+                        LabeledTextField(label: "金額", placeholder: "288", text: $amount, keyboardType: .decimalPad)
+                            .onChange(of: amount) { _, newValue in
+                                amount = newValue.filter { $0.isNumber || $0 == "." }
+                            }
+                        Picker("", selection: $currency) {
+                            ForEach(suggestedCurrencies, id: \.self) { code in
+                                Text(code).tag(code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .tint(Color("AppAccent"))
+                    }
+
+                    LabeledTextField(label: "數量", placeholder: "1", text: $quantity, keyboardType: .decimalPad)
+                        .onChange(of: quantity) { _, newValue in
+                            quantity = newValue.filter { $0.isNumber || $0 == "." }
+                        }
+                    LabeledTextField(label: "匯率", placeholder: "15（以零用金為基準）", text: $exchangeRate, keyboardType: .decimalPad)
+                        .onChange(of: exchangeRate) { _, newValue in
+                            exchangeRate = newValue.filter { $0.isNumber || $0 == "." }
+                        }
 
                     if let converted = convertedAmount {
                         HStack {
@@ -75,6 +116,13 @@ struct AddExpenseView: View {
 
                 Section("收據") {
                     LabeledTextField(label: "收據編號", placeholder: "選填", text: $receiptNumber)
+
+                    Picker("支付方式", selection: $paymentMethod) {
+                        Text("未選擇").tag(Optional<PaymentMethod>.none)
+                        ForEach(PaymentMethod.allCases, id: \.self) { method in
+                            Text(method.rawValue).tag(Optional(method))
+                        }
+                    }
                 }
 
                 Section("備註") {
@@ -99,11 +147,11 @@ struct AddExpenseView: View {
     }
 
     private func loadDefaults() {
-        guard let last = lastExpense else { return }
-        date = last.date
-        location = last.location ?? ""
-        currency = last.currency
-        exchangeRate = last.exchangeRate.formatted()
+        if let last = lastExpense {
+            currency = last.currency
+        } else if let firstCurrency = suggestedCurrencies.first {
+            currency = firstCurrency
+        }
     }
 
     private func saveExpense() {
@@ -124,6 +172,7 @@ struct AddExpenseView: View {
         )
         expense.location = location.isEmpty ? nil : location
         expense.receiptNumber = receiptNumber.isEmpty ? nil : receiptNumber
+        expense.paymentMethod = paymentMethod?.rawValue
         expense.notes = notes.isEmpty ? nil : notes
 
         modelContext.insert(expense)

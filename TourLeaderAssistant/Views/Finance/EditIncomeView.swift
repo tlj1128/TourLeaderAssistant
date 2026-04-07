@@ -5,28 +5,40 @@ struct EditIncomeView: View {
     @Environment(\.dismiss) private var dismiss
     let income: Income
 
+    @Query(sort: \CustomIncomeType.sortOrder) private var customIncomeTypes: [CustomIncomeType]
+
     @State private var date: Date
-    @State private var type: IncomeType
-    @State private var typeCustom: String
+    @State private var selectedTypeName: String
     @State private var amount: String
     @State private var currency: String
     @State private var notes: String
 
+    let commonCurrencies = ["TWD", "USD", "EUR", "JPY", "GBP", "HKD", "AUD", "SGD", "KRW", "THB"]
+
     init(income: Income) {
         self.income = income
         _date = State(initialValue: income.date)
-        _type = State(initialValue: income.type)
-        _typeCustom = State(initialValue: income.typeCustom ?? "")
+        _selectedTypeName = State(initialValue: income.typeName)
         _amount = State(initialValue: income.amount.formatted())
         _currency = State(initialValue: income.currency)
         _notes = State(initialValue: income.notes ?? "")
     }
 
+    // 預設 + 自訂 + 其他
+    var allTypeNames: [String] {
+        DefaultIncomeType.all.map(\.name)
+        + customIncomeTypes.map(\.name)
+        + [DefaultIncomeType.otherName]
+    }
+
+    var currencyOptions: [String] {
+        var result = commonCurrencies
+        if !result.contains(currency) { result.insert(currency, at: 0) }
+        return result
+    }
+
     var isFormValid: Bool {
-        !amount.isEmpty &&
-        Decimal(string: amount) != nil &&
-        !currency.isEmpty &&
-        (type != .other || !typeCustom.trimmingCharacters(in: .whitespaces).isEmpty)
+        !amount.isEmpty && Decimal(string: amount) != nil
     }
 
     var body: some View {
@@ -36,23 +48,26 @@ struct EditIncomeView: View {
                     DatePicker("日期", selection: $date, displayedComponents: .date)
                         .environment(\.locale, Locale(identifier: "zh_TW"))
 
-                    Picker("類型", selection: $type) {
-                        ForEach(IncomeType.allCases, id: \.self) { t in
-                            Text(t.displayName).tag(t)
+                    Picker("類型", selection: $selectedTypeName) {
+                        ForEach(allTypeNames, id: \.self) { name in
+                            Text(name).tag(name)
                         }
-                    }
-
-                    if type == .other {
-                        LabeledTextField(label: "自訂名稱", placeholder: "請輸入", text: $typeCustom)
                     }
                 }
 
                 Section("金額") {
-                    LabeledTextField(label: "金額", placeholder: "5000", text: $amount)
-                        .keyboardType(.decimalPad)
-                    LabeledTextField(label: "幣種", placeholder: "JPY", text: $currency)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
+                    HStack(spacing: 8) {
+                        LabeledTextField(label: "金額", placeholder: "5000", text: $amount)
+                            .keyboardType(.decimalPad)
+                        Picker("", selection: $currency) {
+                            ForEach(currencyOptions, id: \.self) { code in
+                                Text(code).tag(code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .tint(Color("AppAccent"))
+                    }
                 }
 
                 Section("備註") {
@@ -78,10 +93,9 @@ struct EditIncomeView: View {
     private func save() {
         guard let amt = Decimal(string: amount) else { return }
         income.date = date
-        income.type = type
-        income.typeCustom = type == .other ? typeCustom.trimmingCharacters(in: .whitespaces) : nil
+        income.typeName = selectedTypeName
         income.amount = amt
-        income.currency = currency.uppercased()
+        income.currency = currency
         income.notes = notes.isEmpty ? nil : notes
         dismiss()
     }

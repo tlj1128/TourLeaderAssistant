@@ -8,6 +8,7 @@ struct IncomeListView: View {
     @Query private var allIncomes: [Income]
     @State private var showingAdd = false
     @State private var selectedIncome: Income? = nil
+    @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
     var incomes: [Income] {
         allIncomes
@@ -30,12 +31,12 @@ struct IncomeListView: View {
             if incomes.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "banknote")
-                        .font(.system(size: 64))
+                        .font(.title)
                         .foregroundStyle(Color("AppAccent").opacity(0.4))
                     Text("尚無收入記錄")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.title3).fontWeight(.semibold)
                     Text("點右上角 ＋ 新增第一筆收入")
-                        .font(.system(size: 15))
+                        .font(.subheadline)
                         .foregroundStyle(Color(.systemGray))
                 }
             } else {
@@ -58,11 +59,11 @@ struct IncomeListView: View {
                         } header: {
                             HStack {
                                 Text(formattedDate(date))
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(.footnote).fontWeight(.semibold)
                                     .foregroundStyle(Color("AppAccent"))
                                 Spacer()
                                 Text(dayTotal(for: dayIncomes))
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.footnote)
                                     .foregroundStyle(Color(.systemGray))
                             }
                             .padding(.vertical, 4)
@@ -79,16 +80,18 @@ struct IncomeListView: View {
                     showingAdd = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22))
+                        .font(.title2)
                         .foregroundStyle(Color("AppAccent"))
                 }
             }
         }
         .sheet(isPresented: $showingAdd) {
             AddIncomeView(team: team)
+                .appDynamicTypeSize(textSizePreference)
         }
         .sheet(item: $selectedIncome) { income in
             EditIncomeView(income: income)
+                .appDynamicTypeSize(textSizePreference)
         }
     }
 
@@ -115,18 +118,18 @@ struct IncomeRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: income.type.icon)
-                .font(.system(size: 18))
+            Image(systemName: DefaultIncomeType.iconName(for: income.typeName))
+                .font(.callout)
                 .foregroundStyle(Color("AppAccent"))
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(income.displayName)
-                    .font(.system(size: 15, weight: .medium))
+                Text(income.typeName)
+                    .font(.subheadline)
                     .foregroundStyle(.primary)
                 if let notes = income.notes, !notes.isEmpty {
                     Text(notes)
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(Color(.systemGray))
                         .lineLimit(1)
                 }
@@ -136,10 +139,10 @@ struct IncomeRowView: View {
 
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(income.currency)
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Color(.systemGray))
                 Text(income.amount.formatted(.number.precision(.fractionLength(0))))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline).fontWeight(.semibold)
                     .foregroundStyle(.primary)
             }
         }

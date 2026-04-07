@@ -1,6 +1,12 @@
 import Foundation
 import SwiftData
 
+enum PaymentMethod: String, Codable, CaseIterable {
+    case cash = "現金"
+    case creditCard = "信用卡"
+    case other = "其他"
+}
+
 @Model
 class Expense {
     var id: UUID
@@ -15,6 +21,7 @@ class Expense {
     var convertedAmount: Decimal
     var receiptNumber: String?
     var receiptImagePath: String?
+    var paymentMethod: String?   // PaymentMethod.rawValue，選填
     var notes: String?
     var createdAt: Date
 

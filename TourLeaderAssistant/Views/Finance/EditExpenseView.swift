@@ -15,7 +15,10 @@ struct EditExpenseView: View {
     @State private var currency: String
     @State private var exchangeRate: String
     @State private var receiptNumber: String
+    @State private var paymentMethod: PaymentMethod?
     @State private var notes: String
+
+    let commonCurrencies = ["TWD", "USD", "EUR", "JPY", "GBP", "HKD", "AUD", "SGD", "KRW", "THB"]
 
     init(expense: Expense) {
         self.expense = expense
@@ -27,7 +30,14 @@ struct EditExpenseView: View {
         _currency = State(initialValue: expense.currency)
         _exchangeRate = State(initialValue: expense.exchangeRate.formatted())
         _receiptNumber = State(initialValue: expense.receiptNumber ?? "")
+        _paymentMethod = State(initialValue: PaymentMethod(rawValue: expense.paymentMethod ?? ""))
         _notes = State(initialValue: expense.notes ?? "")
+    }
+
+    var currencyOptions: [String] {
+        var result = commonCurrencies
+        if !result.contains(currency) { result.insert(currency, at: 0) }
+        return result
     }
 
     var convertedAmount: Decimal? {
@@ -59,15 +69,29 @@ struct EditExpenseView: View {
                 }
 
                 Section("金額") {
-                    LabeledTextField(label: "金額", placeholder: "288", text: $amount)
-                        .keyboardType(.decimalPad)
-                    LabeledTextField(label: "數量", placeholder: "1", text: $quantity)
-                        .keyboardType(.decimalPad)
-                    LabeledTextField(label: "幣種", placeholder: "USD", text: $currency)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
-                    LabeledTextField(label: "匯率", placeholder: "15（以零用金為基準）", text: $exchangeRate)
-                        .keyboardType(.decimalPad)
+                    HStack(spacing: 8) {
+                        LabeledTextField(label: "金額", placeholder: "288", text: $amount, keyboardType: .decimalPad)
+                            .onChange(of: amount) { _, newValue in
+                                amount = newValue.filter { $0.isNumber || $0 == "." }
+                            }
+                        Picker("", selection: $currency) {
+                            ForEach(currencyOptions, id: \.self) { code in
+                                Text(code).tag(code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .tint(Color("AppAccent"))
+                    }
+
+                    LabeledTextField(label: "數量", placeholder: "1", text: $quantity, keyboardType: .decimalPad)
+                        .onChange(of: quantity) { _, newValue in
+                            quantity = newValue.filter { $0.isNumber || $0 == "." }
+                        }
+                    LabeledTextField(label: "匯率", placeholder: "15（以零用金為基準）", text: $exchangeRate, keyboardType: .decimalPad)
+                        .onChange(of: exchangeRate) { _, newValue in
+                            exchangeRate = newValue.filter { $0.isNumber || $0 == "." }
+                        }
 
                     if let converted = convertedAmount {
                         HStack {
@@ -88,6 +112,13 @@ struct EditExpenseView: View {
 
                 Section("收據") {
                     LabeledTextField(label: "收據編號", placeholder: "選填", text: $receiptNumber)
+
+                    Picker("支付方式", selection: $paymentMethod) {
+                        Text("未選擇").tag(Optional<PaymentMethod>.none)
+                        ForEach(PaymentMethod.allCases, id: \.self) { method in
+                            Text(method.rawValue).tag(Optional(method))
+                        }
+                    }
                 }
 
                 Section("備註") {
@@ -126,6 +157,7 @@ struct EditExpenseView: View {
         expense.exchangeRate = rate
         expense.convertedAmount = (amt * qty) / rate
         expense.receiptNumber = receiptNumber.isEmpty ? nil : receiptNumber
+        expense.paymentMethod = paymentMethod?.rawValue
         expense.notes = notes.isEmpty ? nil : notes
 
         dismiss()

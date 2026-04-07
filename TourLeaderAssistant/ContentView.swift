@@ -1,61 +1,55 @@
-//
-//  ContentView.swift
-//  TourLeaderAssistant
-//
-//  Created by 杜立仁 on 2026/3/30.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @AppStorage("appearance") private var appearance = "auto"
+    @AppStorage("textSizePreference") private var textSizePreference = "standard"
+
+    var colorScheme: ColorScheme? {
+        switch appearance {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
+        }
+    }
+
+    var dynamicTypeSize: DynamicTypeSize {
+        switch textSizePreference {
+        case "large":    return .xLarge
+        case "xlarge":   return .xxLarge
+        case "xxlarge":  return .xxxLarge
+        default:         return .large  // 標準
+        }
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+        TabView {
+            TeamListView()
+                .tabItem {
+                    Label("團體", systemImage: "rectangle.grid.2x2.fill")
                 }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+
+            TeamArchiveView()
+                .tabItem {
+                    Label("紀錄", systemImage: "archivebox")
                 }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+
+            StatsView()
+                .tabItem {
+                    Label("統計", systemImage: "chart.bar.fill")
                 }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
+            PlaceLibraryView()
+                .tabItem {
+                    Label("地點庫", systemImage: "mappin.and.ellipse")
+                }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+            SettingsView()
+                .tabItem {
+                    Label("設定", systemImage: "gearshape")
+                }
         }
+        .tint(Color("AppAccent"))
+        .preferredColorScheme(colorScheme)
+        .dynamicTypeSize(dynamicTypeSize)
     }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

@@ -11,6 +11,7 @@ struct ExpenseListView: View {
     @State private var showingAddExpense = false
     @State private var selectedExpense: Expense? = nil
     @State private var selectedTab: ExpenseTab = .expense
+    @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
     enum ExpenseTab {
         case expense, income
@@ -21,7 +22,7 @@ struct ExpenseListView: View {
     }
 
     var pettyCash: TourFund? {
-        teamFunds.first { $0.fundType == .pettyCash }
+        teamFunds.first { $0.typeName == "零用金" }
     }
 
     var expenses: [Expense] {
@@ -79,7 +80,7 @@ struct ExpenseListView: View {
                         showingAddExpense = true
                     } label: {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 22))
+                            .font(.title2)
                             .foregroundStyle(Color("AppAccent"))
                     }
                 }
@@ -87,9 +88,11 @@ struct ExpenseListView: View {
         }
         .sheet(isPresented: $showingAddExpense) {
             AddExpenseView(team: team, lastExpense: expenses.first)
+                .appDynamicTypeSize(textSizePreference)
         }
         .sheet(item: $selectedExpense) { expense in
             EditExpenseView(expense: expense)
+                .appDynamicTypeSize(textSizePreference)
         }
     }
 
@@ -101,12 +104,12 @@ struct ExpenseListView: View {
                 VStack(spacing: 16) {
                     Spacer()
                     Image(systemName: "dollarsign.circle")
-                        .font(.system(size: 64))
+                        .font(.title)
                         .foregroundStyle(Color("AppAccent").opacity(0.4))
                     Text("尚無帳務記錄")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.title3).fontWeight(.semibold)
                     Text("點右上角 ＋ 新增第一筆支出")
-                        .font(.system(size: 15))
+                        .font(.subheadline)
                         .foregroundStyle(Color(.systemGray))
                     Spacer()
                 }
@@ -137,11 +140,11 @@ struct ExpenseListView: View {
                         } header: {
                             HStack {
                                 Text(formattedDate(date))
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(.footnote).fontWeight(.semibold)
                                     .foregroundStyle(Color("AppAccent"))
                                 Spacer()
                                 Text(dayTotal(for: dayExpenses))
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.footnote)
                                     .foregroundStyle(Color(.systemGray))
                             }
                             .padding(.vertical, 4)
@@ -160,18 +163,18 @@ struct ExpenseListView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("已支出")
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Color(.systemGray))
                 HStack(alignment: .lastTextBaseline, spacing: 3) {
                     Text(currency)
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(Color(.systemGray))
                     Text(totalConverted.formatted(.number.precision(.fractionLength(2))))
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.title2).fontWeight(.bold)
                         .foregroundStyle(.primary)
                 }
                 Text("共 \(expenses.count) 筆")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundStyle(Color(.systemGray3))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,26 +185,26 @@ struct ExpenseListView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("零用金餘額")
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Color(.systemGray))
                 if let fund = pettyCash {
                     HStack(alignment: .lastTextBaseline, spacing: 3) {
                         Text(fund.currency)
-                            .font(.system(size: 13))
+                            .font(.footnote)
                             .foregroundStyle(Color(.systemGray))
                         Text(balance.formatted(.number.precision(.fractionLength(2))))
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.title2).fontWeight(.bold)
                             .foregroundStyle(balance >= 0 ? Color.primary : Color.red)
                     }
                     Text("初始 \(fund.initialAmount.formatted(.number.precision(.fractionLength(2))))")
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundStyle(Color(.systemGray3))
                 } else {
                     Text("—")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.title2).fontWeight(.bold)
                         .foregroundStyle(Color(.systemGray3))
                     Text("尚未設定")
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundStyle(Color(.systemGray3))
                 }
             }
@@ -237,7 +240,7 @@ struct ExpenseRowView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(expense.item)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.subheadline)
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 8) {
@@ -246,7 +249,7 @@ struct ExpenseRowView: View {
                             Image(systemName: "mappin")
                                 .font(.system(size: 10))
                             Text(location)
-                                .font(.system(size: 12))
+                                .font(.caption)
                         }
                         .foregroundStyle(Color(.systemGray))
                     }
@@ -255,7 +258,7 @@ struct ExpenseRowView: View {
                             Image(systemName: "doc")
                                 .font(.system(size: 10))
                             Text("#\(receipt)")
-                                .font(.system(size: 12))
+                                .font(.caption)
                         }
                         .foregroundStyle(Color(.systemGray))
                     }
@@ -267,14 +270,14 @@ struct ExpenseRowView: View {
             VStack(alignment: .trailing, spacing: 4) {
                 HStack(alignment: .lastTextBaseline, spacing: 2) {
                     Text(expense.currency)
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(Color(.systemGray))
                     Text(expense.amount.formatted(.number.precision(.fractionLength(2))))
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.subheadline).fontWeight(.semibold)
                         .foregroundStyle(.primary)
                 }
                 Text("≈ \(currency) \(expense.convertedAmount.formatted(.number.precision(.fractionLength(2))))")
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Color(.systemGray))
             }
         }

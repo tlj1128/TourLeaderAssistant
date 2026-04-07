@@ -6,13 +6,30 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		93DB31092F839626001E7AC7 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 93DB31082F839626001E7AC7 /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		93DE9F6B2F7AAB250083B3FD /* TourLeaderAssistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TourLeaderAssistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		93AEE9522F7CDB2400B2C57C /* Exceptions for "TourLeaderAssistant" folder in "TourLeaderAssistant" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 93DE9F6A2F7AAB250083B3FD /* TourLeaderAssistant */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		93DE9F6D2F7AAB250083B3FD /* TourLeaderAssistant */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				93AEE9522F7CDB2400B2C57C /* Exceptions for "TourLeaderAssistant" folder in "TourLeaderAssistant" target */,
+			);
 			path = TourLeaderAssistant;
 			sourceTree = "<group>";
 		};
@@ -23,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93DB31092F839626001E7AC7 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +83,7 @@
 			);
 			name = TourLeaderAssistant;
 			packageProductDependencies = (
+				93DB31082F839626001E7AC7 /* Supabase */,
 			);
 			productName = TourLeaderAssistant;
 			productReference = 93DE9F6B2F7AAB250083B3FD /* TourLeaderAssistant.app */;
@@ -86,14 +105,18 @@
 				};
 			};
 			buildConfigurationList = 93DE9F662F7AAB250083B3FD /* Build configuration list for PBXProject "TourLeaderAssistant" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hant";
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hant",
 			);
 			mainGroup = 93DE9F622F7AAB250083B3FD;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				93DB31072F839626001E7AC7 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 93DE9F6C2F7AAB250083B3FD /* Products */;
 			projectDirPath = "";
@@ -256,11 +279,18 @@
 				DEVELOPMENT_TEAM = 3W57RX3XDL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TourLeaderAssistant/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "領隊助手";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用於記錄出團與回國日期";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用於拍攝地點照片";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "用於拍照後儲存至系統相簿";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用於從相簿選取地點照片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -288,11 +318,18 @@
 				DEVELOPMENT_TEAM = 3W57RX3XDL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TourLeaderAssistant/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "領隊助手";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用於記錄出團與回國日期";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用於拍攝地點照片";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "用於拍照後儲存至系統相簿";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "用於從相簿選取地點照片";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -332,6 +369,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		93DB31072F839626001E7AC7 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		93DB31082F839626001E7AC7 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93DB31072F839626001E7AC7 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 93DE9F632F7AAB250083B3FD /* Project object */;
 }

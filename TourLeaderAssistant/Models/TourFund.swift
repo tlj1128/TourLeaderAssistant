@@ -5,8 +5,7 @@ import SwiftData
 class TourFund {
     var id: UUID
     var teamID: UUID
-    var fundType: FundType
-    var fundTypeCustom: String?
+    var typeName: String
     var currency: String
     var initialAmount: Decimal
     var isReimbursable: Bool
@@ -14,32 +13,38 @@ class TourFund {
 
     init(
         teamID: UUID,
-        fundType: FundType,
+        typeName: String,
         currency: String,
         initialAmount: Decimal,
         isReimbursable: Bool = true
     ) {
         self.id = UUID()
         self.teamID = teamID
-        self.fundType = fundType
+        self.typeName = typeName
         self.currency = currency
         self.initialAmount = initialAmount
         self.isReimbursable = isReimbursable
     }
 }
 
-enum FundType: String, Codable {
-    case pettyCash = "pettyCash"
-    case mealAllowance = "mealAllowance"
-    case guideTip = "guideTip"
-    case other = "other"
+// 預設類型，不存資料庫
+struct DefaultFundType {
+    let name: String
+    let iconName: String
 
-    var displayName: String {
-        switch self {
-        case .pettyCash: return "零用金"
-        case .mealAllowance: return "誤餐費"
-        case .guideTip: return "導遊小費"
-        case .other: return "其他"
+    static let all: [DefaultFundType] = [
+        DefaultFundType(name: "零用金", iconName: "bag"),
+        DefaultFundType(name: "誤餐費", iconName: "fork.knife"),
+        DefaultFundType(name: "導遊小費", iconName: "hand.thumbsup"),
+    ]
+
+    static let otherName = "其他"
+    static let otherIcon = "ellipsis.circle"
+
+    static func iconName(for typeName: String) -> String {
+        if let match = all.first(where: { $0.name == typeName }) {
+            return match.iconName
         }
+        return otherIcon
     }
 }

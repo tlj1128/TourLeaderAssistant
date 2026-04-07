@@ -6,18 +6,39 @@ struct AddIncomeView: View {
     @Environment(\.dismiss) private var dismiss
     let team: Team
 
+    @Query private var allCountries: [Country]
+    @Query(sort: \CustomIncomeType.sortOrder) private var customIncomeTypes: [CustomIncomeType]
+
+    // 預設 + 自訂 + 其他
+    var allTypeNames: [String] {
+        DefaultIncomeType.all.map(\.name)
+        + customIncomeTypes.map(\.name)
+        + [DefaultIncomeType.otherName]
+    }
+
     @State private var date = Date()
-    @State private var type: IncomeType = .leaderTip
-    @State private var typeCustom = ""
+    @State private var selectedTypeName: String = DefaultIncomeType.all.first?.name ?? "領隊小費"
     @State private var amount = ""
-    @State private var currency = ""
+    @State private var currency = "TWD"
     @State private var notes = ""
 
+    var suggestedCurrencies: [String] {
+        var result: [String] = []
+        for code in team.countryCodes {
+            if let country = allCountries.first(where: { $0.code == code }),
+               !country.currencyCode.isEmpty,
+               !result.contains(country.currencyCode) {
+                result.append(country.currencyCode)
+            }
+        }
+        for common in ["TWD", "USD", "EUR", "JPY", "GBP"] {
+            if !result.contains(common) { result.append(common) }
+        }
+        return result
+    }
+
     var isFormValid: Bool {
-        !amount.isEmpty &&
-        Decimal(string: amount) != nil &&
-        !currency.isEmpty &&
-        (type != .other || !typeCustom.trimmingCharacters(in: .whitespaces).isEmpty)
+        !amount.isEmpty && Decimal(string: amount) != nil
     }
 
     var body: some View {
@@ -27,23 +48,26 @@ struct AddIncomeView: View {
                     DatePicker("日期", selection: $date, displayedComponents: .date)
                         .environment(\.locale, Locale(identifier: "zh_TW"))
 
-                    Picker("類型", selection: $type) {
-                        ForEach(IncomeType.allCases, id: \.self) { t in
-                            Text(t.displayName).tag(t)
+                    Picker("類型", selection: $selectedTypeName) {
+                        ForEach(allTypeNames, id: \.self) { name in
+                            Text(name).tag(name)
                         }
-                    }
-
-                    if type == .other {
-                        LabeledTextField(label: "自訂名稱", placeholder: "請輸入", text: $typeCustom)
                     }
                 }
 
                 Section("金額") {
-                    LabeledTextField(label: "金額", placeholder: "5000", text: $amount)
-                        .keyboardType(.decimalPad)
-                    LabeledTextField(label: "幣種", placeholder: "JPY", text: $currency)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
+                    HStack(spacing: 8) {
+                        LabeledTextField(label: "金額", placeholder: "5000", text: $amount)
+                            .keyboardType(.decimalPad)
+                        Picker("", selection: $currency) {
+                            ForEach(suggestedCurrencies, id: \.self) { code in
+                                Text(code).tag(code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .tint(Color("AppAccent"))
+                    }
                 }
 
                 Section("備註") {
@@ -63,6 +87,11 @@ struct AddIncomeView: View {
                         .fontWeight(.semibold)
                 }
             }
+            .onAppear {
+                if let first = suggestedCurrencies.first {
+                    currency = first
+                }
+            }
         }
     }
 
@@ -72,11 +101,10 @@ struct AddIncomeView: View {
         let income = Income(
             teamID: team.id,
             date: date,
-            type: type,
+            typeName: selectedTypeName,
             amount: amt,
-            currency: currency.uppercased()
+            currency: currency
         )
-        income.typeCustom = type == .other ? typeCustom.trimmingCharacters(in: .whitespaces) : nil
         income.notes = notes.isEmpty ? nil : notes
 
         modelContext.insert(income)
