@@ -15,6 +15,7 @@ struct AddTeamView: View {
     @State private var availableCalendars: [EKCalendar] = []
     @State private var selectedCalendar: EKCalendar? = nil
     @State private var calendarAccessGranted = false
+    @State private var calendarAccessError: String? = nil
     @State private var showingCountryPicker = false
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
@@ -23,7 +24,7 @@ struct AddTeamView: View {
     }
 
     var isFormValid: Bool {
-        !tourCode.isEmpty && !name.isEmpty && days > 0
+        !name.isEmpty && days > 0
     }
 
     var selectedCountryFlags: String {
@@ -34,7 +35,7 @@ struct AddTeamView: View {
         NavigationStack {
             Form {
                 Section("基本資料") {
-                    LabeledTextField(label: "團號", placeholder: "TC20260619TK1", text: $tourCode)
+                    LabeledTextField(label: "團號", placeholder: "TC20260619TK1（選填）", text: $tourCode)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.characters)
                     LabeledTextField(label: "團名", placeholder: "納米比亞 16 天", text: $name)
@@ -73,22 +74,29 @@ struct AddTeamView: View {
                 Section("行事曆") {
                     Toggle("加入 Apple 行事曆", isOn: $addToCalendar)
 
-                    if addToCalendar && calendarAccessGranted && !availableCalendars.isEmpty {
-                        ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
-                            Button {
-                                selectedCalendar = cal
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Circle()
-                                        .fill(Color(cgColor: cal.cgColor))
-                                        .frame(width: 12, height: 12)
-                                    Text(cal.title)
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    if selectedCalendar?.calendarIdentifier == cal.calendarIdentifier {
-                                        Image(systemName: "checkmark")
-                                            .font(.subheadline).fontWeight(.semibold)
-                                            .foregroundStyle(Color("AppAccent"))
+                    if addToCalendar {
+                        if let errorMessage = calendarAccessError {
+                            // 顯示錯誤原因（拒絕授權或系統錯誤）
+                            Label(errorMessage, systemImage: "exclamationmark.triangle")
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        } else if calendarAccessGranted && !availableCalendars.isEmpty {
+                            ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
+                                Button {
+                                    selectedCalendar = cal
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Circle()
+                                            .fill(Color(cgColor: cal.cgColor))
+                                            .frame(width: 12, height: 12)
+                                        Text(cal.title)
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        if selectedCalendar?.calendarIdentifier == cal.calendarIdentifier {
+                                            Image(systemName: "checkmark")
+                                                .font(.subheadline).fontWeight(.semibold)
+                                                .foregroundStyle(Color("AppAccent"))
+                                        }
                                     }
                                 }
                             }
@@ -117,11 +125,18 @@ struct AddTeamView: View {
     }
 
     private func loadCalendars() {
-        CalendarManager.shared.requestAccess { granted in
+        CalendarManager.shared.requestAccess { granted, error in
             calendarAccessGranted = granted
             if granted {
+                calendarAccessError = nil
                 availableCalendars = CalendarManager.shared.availableCalendars()
                 selectedCalendar = CalendarManager.shared.store.defaultCalendarForNewEvents
+            } else if let error {
+                // 系統錯誤（例如家長監護限制）
+                calendarAccessError = "無法存取行事曆：\(error.localizedDescription)"
+            } else {
+                // 使用者拒絕授權
+                calendarAccessError = "請至「設定 > 隱私權 > 行事曆」允許存取"
             }
         }
     }

@@ -3,15 +3,25 @@ import SwiftData
 
 struct RestaurantDetailView: View {
     let restaurant: PlaceRestaurant
+    @Environment(\.modelContext) private var modelContext
     @State private var showingEdit = false
+    @State private var isSyncing = false
+    @State private var syncMessage: String? = nil
+    @State private var showingUploadConfirm = false
+    @State private var showingRefreshConfirm = false
 
     @Query private var allPhotos: [PlacePhoto]
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
     var photos: [PlacePhoto] {
         allPhotos
-            .filter { $0.placeID == restaurant.id }
+            .filter { $0.placeID == restaurant.id && !$0.needsDelete }
             .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    var hasPendingChanges: Bool {
+        restaurant.needsSync ||
+        allPhotos.filter { $0.placeID == restaurant.id }.contains { $0.needsUpload || $0.needsDelete }
     }
 
     var body: some View {
@@ -22,7 +32,9 @@ struct RestaurantDetailView: View {
                 Section {
                     NavigationLink(destination: PlacePhotoManageView(
                         placeID: restaurant.id,
-                        maxPhotos: 8
+                        placeType: "restaurant",
+                        remoteID: restaurant.remoteID,
+                        maxPhotos: 10
                     )) {
                         if photos.isEmpty {
                             HStack {
@@ -60,7 +72,22 @@ struct RestaurantDetailView: View {
                     }
                     .listRowBackground(Color("AppCard"))
                 } header: {
-                    Text("照片（\(photos.count)/8）")
+                    Text("照片（\(photos.count)/10）")
+                }
+
+                // 異動提示
+                if hasPendingChanges && restaurant.remoteID != nil {
+                    Section {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundStyle(Color("AppAccent"))
+                                .font(.footnote)
+                            Text("資料有未同步的修改")
+                                .font(.footnote)
+                                .foregroundStyle(Color("AppAccent"))
+                        }
+                        .listRowBackground(Color("AppAccent").opacity(0.08))
+                    }
                 }
 
                 Section("基本資訊") {
@@ -137,21 +164,90 @@ struct RestaurantDetailView: View {
                             .listRowBackground(Color("AppCard"))
                     }
                 }
+
+                if let message = syncMessage {
+                    Section {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(Color("AppSecondary"))
+                            .listRowBackground(Color("AppCard"))
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
+
+            if isSyncing {
+                Color.black.opacity(0.3).ignoresSafeArea()
+                ProgressView("同步中…")
+                    .padding(20)
+                    .background(Color("AppCard"))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         }
         .navigationTitle(restaurant.displayName)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("編輯") { showingEdit = true }
-                    .foregroundStyle(Color("AppAccent"))
+                HStack(spacing: 12) {
+                    if restaurant.remoteID != nil {
+                        if hasPendingChanges {
+                            Button {
+                                showingUploadConfirm = true
+                            } label: {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .foregroundStyle(Color("AppAccent"))
+                            }
+                            .disabled(isSyncing)
+                        }
+                        Button {
+                            showingRefreshConfirm = true
+                        } label: {
+                            Image(systemName: "arrow.down.circle")
+                                .foregroundStyle(Color("AppAccent"))
+                        }
+                        .disabled(isSyncing)
+                    }
+                    Button("編輯") { showingEdit = true }
+                        .foregroundStyle(Color("AppAccent"))
+                }
             }
         }
         .sheet(isPresented: $showingEdit) {
             EditRestaurantView(restaurant: restaurant)
                 .appDynamicTypeSize(textSizePreference)
         }
+        .alert("同步雲端", isPresented: $showingUploadConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("確認上傳") { Task { await syncToCloud() } }
+        } message: {
+            Text("將把這筆資料與照片的異動同步到雲端，其他裝置同步後也會看到變更。確定繼續嗎？")
+        }
+        .alert("更新本地", isPresented: $showingRefreshConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("確認更新", role: .destructive) { Task { await refreshFromCloud() } }
+        } message: {
+            Text("將以雲端最新資料覆蓋這筆本機資料（含照片），本機未同步的異動將會遺失。確定繼續嗎？")
+        }
+    }
+
+    private func syncToCloud() async {
+        guard let remoteID = restaurant.remoteID else { return }
+        isSyncing = true
+        syncMessage = nil
+        let dataSuccess = await SupabaseManager.shared.uploadRestaurant(restaurant, context: modelContext)
+        let photoResult = await SupabaseManager.shared.syncPhotos(for: restaurant.id, placeType: "restaurant", remoteID: remoteID, context: modelContext)
+        isSyncing = false
+        syncMessage = dataSuccess
+            ? (photoResult.summary.isEmpty ? "同步完成" : photoResult.summary)
+            : "資料同步失敗，請確認城市是否已同步"
+    }
+
+    private func refreshFromCloud() async {
+        isSyncing = true
+        syncMessage = nil
+        let success = await SupabaseManager.shared.refreshLocalRestaurant(restaurant, context: modelContext)
+        isSyncing = false
+        syncMessage = success ? "已從雲端更新本機資料" : "更新失敗，請確認網路連線"
     }
 }

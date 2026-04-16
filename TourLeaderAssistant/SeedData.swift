@@ -92,6 +92,7 @@ struct SeedData {
         ("亞美尼亞", "Armenia", "AM", "+374", "AMD"),
         ("亞塞拜然", "Azerbaijan", "AZ", "+994", "AZN"),
         ("賽普勒斯", "Cyprus", "CY", "+357", "EUR"),
+        ("阿富汗", "Afghanistan", "AF", "+93", "AFN"),
 
         // ── 北歐 ──
         ("瑞典", "Sweden", "SE", "+46", "SEK"),
@@ -160,11 +161,16 @@ struct SeedData {
         ("坦尚尼亞", "Tanzania", "TZ", "+255", "TZS"),
         ("烏干達", "Uganda", "UG", "+256", "UGX"),
         ("盧安達", "Rwanda", "RW", "+250", "RWF"),
+        ("蒲隆地", "Burundi", "BI", "+257", "BIF"),
         ("尚比亞", "Zambia", "ZM", "+260", "ZMW"),
         ("辛巴威", "Zimbabwe", "ZW", "+263", "ZWL"),
+
+        // ── 東非島嶼 ──
         ("馬達加斯加", "Madagascar", "MG", "+261", "MGA"),
         ("模里西斯", "Mauritius", "MU", "+230", "MUR"),
         ("塞席爾", "Seychelles", "SC", "+248", "SCR"),
+        ("葛摩", "Comoros", "KM", "+269", "KMF"),
+        ("留尼旺", "Reunion", "RE", "+262", "EUR"),
 
         // ── 中非 ──
         ("喀麥隆", "Cameroon", "CM", "+237", "XAF"),
@@ -177,6 +183,17 @@ struct SeedData {
         ("奈及利亞", "Nigeria", "NG", "+234", "NGN"),
         ("象牙海岸", "Côte d'Ivoire", "CI", "+225", "XOF"),
         ("維德角", "Cape Verde", "CV", "+238", "CVE"),
+        ("甘比亞", "Gambia", "GM", "+220", "GMD"),
+        ("幾內亞", "Guinea", "GN", "+224", "GNF"),
+        ("幾內亞比索", "Guinea-Bissau", "GW", "+245", "XOF"),
+        ("獅子山", "Sierra Leone", "SL", "+232", "SLL"),
+        ("賴比瑞亞", "Liberia", "LR", "+231", "LRD"),
+        ("茅利塔尼亞", "Mauritania", "MR", "+222", "MRU"),
+        ("馬利", "Mali", "ML", "+223", "XOF"),
+        ("布吉納法索", "Burkina Faso", "BF", "+226", "XOF"),
+        ("尼日", "Niger", "NE", "+227", "XOF"),
+        ("貝南", "Benin", "BJ", "+229", "XOF"),
+        ("多哥", "Togo", "TG", "+228", "XOF"),
 
         // ── 南非地區 ──
         ("南非", "South Africa", "ZA", "+27", "ZAR"),
@@ -185,6 +202,8 @@ struct SeedData {
         ("莫三比克", "Mozambique", "MZ", "+258", "MZN"),
         ("史瓦帝尼", "Eswatini", "SZ", "+268", "SZL"),
         ("賴索托", "Lesotho", "LS", "+266", "LSL"),
+        ("安哥拉", "Angola", "AO", "+244", "AOA"),
+        ("馬拉威", "Malawi", "MW", "+265", "MWK"),
 
         // ── 北美 ──
         ("美國", "United States", "US", "+1", "USD"),
@@ -210,6 +229,7 @@ struct SeedData {
         ("巴貝多", "Barbados", "BB", "+1-246", "BBD"),
         ("聖露西亞", "Saint Lucia", "LC", "+1-758", "XCD"),
         ("阿魯巴", "Aruba", "AW", "+297", "AWG"),
+        ("海地", "Haiti", "HT", "+509", "HTG"),
 
         // ── 南美洲 ──
         ("巴西", "Brazil", "BR", "+55", "BRL"),

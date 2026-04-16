@@ -31,109 +31,104 @@ struct EditAttractionView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("名稱") {
-                    LabeledTextField(label: "英文名稱", placeholder: "Eiffel Tower", text: $nameEN)
-                        .autocorrectionDisabled()
-                    LabeledTextField(label: "中文名稱", placeholder: "艾菲爾鐵塔", text: $nameZH)
+        Form {
+            Section("名稱") {
+                LabeledTextField(label: "英文名稱", placeholder: "Eiffel Tower", text: $nameEN)
+                    .autocorrectionDisabled()
+                LabeledTextField(label: "中文名稱", placeholder: "艾菲爾鐵塔", text: $nameZH)
+            }
+
+            Section("位置") {
+                Button {
+                    showingCountryPicker = true
+                } label: {
+                    HStack {
+                        Text("國家")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if let country = selectedCountry {
+                            Text("\(country.code.flag) \(country.nameZH)")
+                                .foregroundStyle(.primary)
+                        } else {
+                            Text("未選擇")
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                Section("位置") {
+                if selectedCountry != nil {
                     Button {
-                        showingCountryPicker = true
+                        showingCityPicker = true
                     } label: {
                         HStack {
-                            Text("國家")
+                            Text("城市")
                                 .foregroundStyle(.primary)
                             Spacer()
-                            if let country = selectedCountry {
-                                Text("\(country.code.flag) \(country.nameZH)")
-                                    .foregroundStyle(.primary)
-                            } else {
-                                Text("未選擇")
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(selectedCity?.displayName ?? "未選擇")
+                                .foregroundStyle(selectedCity == nil ? .secondary : .primary)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
+                }
 
-                    if selectedCountry != nil {
-                        Button {
-                            showingCityPicker = true
-                        } label: {
-                            HStack {
-                                Text("城市")
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Text(selectedCity?.displayName ?? "未選擇")
-                                    .foregroundStyle(selectedCity == nil ? .secondary : .primary)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                LabeledTextField(label: "地址", placeholder: "Champ de Mars, 5 Av. Anatole France", text: $address)
+            }
+
+            Section("聯絡") {
+                LabeledTextField(
+                    label: phoneLabel,
+                    placeholder: "不含國碼",
+                    text: $phone
+                )
+                .keyboardType(.phonePad)
+            }
+
+            Section("景點資訊") {
+                LabeledTextField(label: "票價", placeholder: "EUR 29.40（成人）", text: $ticketPrice)
+                LabeledTextField(label: "開放時間", placeholder: "09:00–23:00", text: $openingHours)
+            }
+
+            Section("注意事項") {
+                LabeledTextField(label: "攝影規定", placeholder: "可拍照，禁商業攝影", text: $photographyRules)
+                LabeledTextField(label: "物品規定", placeholder: "禁帶大型背包", text: $allowedItems)
+                TextEditor(text: $notes)
+                    .frame(minHeight: 80)
+                    .overlay(alignment: .topLeading) {
+                        if notes.isEmpty {
+                            Text("其他注意事項")
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 8)
+                                .padding(.leading, 4)
+                                .allowsHitTesting(false)
                         }
                     }
-
-                    LabeledTextField(label: "地址", placeholder: "Champ de Mars, 5 Av. Anatole France", text: $address)
-                }
-
-                Section("聯絡") {
-                    LabeledTextField(
-                        label: phoneLabel,
-                        placeholder: "不含國碼",
-                        text: $phone
-                    )
-                    .keyboardType(.phonePad)
-                }
-
-                Section("景點資訊") {
-                    LabeledTextField(label: "票價", placeholder: "EUR 29.40（成人）", text: $ticketPrice)
-                    LabeledTextField(label: "開放時間", placeholder: "09:00–23:00", text: $openingHours)
-                }
-
-                Section("注意事項") {
-                    LabeledTextField(label: "攝影規定", placeholder: "可拍照，禁商業攝影", text: $photographyRules)
-                    LabeledTextField(label: "物品規定", placeholder: "禁帶大型背包", text: $allowedItems)
-                    TextEditor(text: $notes)
-                        .frame(minHeight: 80)
-                        .overlay(alignment: .topLeading) {
-                            if notes.isEmpty {
-                                Text("其他注意事項")
-                                    .foregroundStyle(.tertiary)
-                                    .padding(.top, 8)
-                                    .padding(.leading, 4)
-                                    .allowsHitTesting(false)
-                            }
-                        }
-                }
             }
-            .navigationTitle("編輯景點")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("儲存") { save() }
-                        .disabled(nameEN.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
+        }
+        .navigationTitle("編輯景點")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("儲存") { save() }
+                    .disabled(nameEN.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .onAppear { loadData() }
-            .onChange(of: selectedCountry) {
-                if !isLoading { selectedCity = nil }
-            }
-            .sheet(isPresented: $showingCountryPicker) {
-                CountryPickerView(selectedCountry: $selectedCountry)
+        }
+        .onAppear { loadData() }
+        .onChange(of: selectedCountry) {
+            if !isLoading { selectedCity = nil }
+        }
+        .sheet(isPresented: $showingCountryPicker) {
+            CountryPickerView(selectedCountry: $selectedCountry)
+                .appDynamicTypeSize(textSizePreference)
+        }
+        .sheet(isPresented: $showingCityPicker) {
+            if let country = selectedCountry {
+                CityPickerView(country: country, selectedCity: $selectedCity)
                     .appDynamicTypeSize(textSizePreference)
-            }
-            .sheet(isPresented: $showingCityPicker) {
-                if let country = selectedCountry {
-                    CityPickerView(country: country, selectedCity: $selectedCity)
-                        .appDynamicTypeSize(textSizePreference)
-                }
             }
         }
     }

@@ -11,7 +11,7 @@ struct CityManagementView: View {
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
     var sortedCities: [City] {
-        country.cities.sorted { $0.nameZH < $1.nameZH }
+        country.cities.sorted { $0.nameEN < $1.nameEN }
     }
 
     var body: some View {
@@ -26,13 +26,25 @@ struct CityManagementView: View {
             } else {
                 ForEach(sortedCities) { city in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(city.nameZH)
-                            .font(.headline)
+                        HStack {
+                            Text(city.nameZH.isEmpty ? city.nameEN : city.nameZH)
+                                .font(.headline)
+                            if city.isPreset {
+                                Text("預設")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color("AppSecondary").opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                        }
                         Text(city.nameEN)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 2)
+                    .deleteDisabled(city.isPreset)
                 }
                 .onDelete(perform: delete)
             }
@@ -58,9 +70,9 @@ struct CityManagementView: View {
         NavigationStack {
             Form {
                 Section("城市名稱") {
-                    TextField("中文名稱（例：東京）", text: $newCityZH)
                     TextField("英文名稱（例：Tokyo）", text: $newCityEN)
                         .autocorrectionDisabled()
+                    TextField("中文名稱（例：東京）", text: $newCityZH)
                 }
                 Section {
                     Text("中文名稱為選填，但建議填寫方便搜尋")
@@ -90,7 +102,8 @@ struct CityManagementView: View {
         let city = City(
             nameZH: newCityZH.trimmingCharacters(in: .whitespaces),
             nameEN: newCityEN.trimmingCharacters(in: .whitespaces),
-            country: country
+            country: country,
+            isPreset: false
         )
         modelContext.insert(city)
         dismissAdd()
@@ -104,7 +117,9 @@ struct CityManagementView: View {
 
     private func delete(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(sortedCities[index])
+            let city = sortedCities[index]
+            guard !city.isPreset else { continue }
+            modelContext.delete(city)
         }
     }
 }

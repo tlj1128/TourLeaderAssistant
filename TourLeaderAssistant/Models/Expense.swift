@@ -42,7 +42,7 @@ class Expense {
         self.amount = amount
         self.currency = currency
         self.exchangeRate = exchangeRate
-        self.convertedAmount = (amount * quantity) / exchangeRate
+        self.convertedAmount = exchangeRate == 0 ? 0 : (amount * quantity) / exchangeRate
         self.createdAt = Date()
     }
 }

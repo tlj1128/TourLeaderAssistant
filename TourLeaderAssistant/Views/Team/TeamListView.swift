@@ -166,6 +166,24 @@ struct TeamListView: View {
 
     private func deleteTeam(_ team: Team) {
         CalendarManager.shared.removeEvent(for: team)
+
+        let teamID = team.id
+
+        let expenseDesc = FetchDescriptor<Expense>(predicate: #Predicate { $0.teamID == teamID })
+        (try? modelContext.fetch(expenseDesc))?.forEach { modelContext.delete($0) }
+
+        let incomeDesc = FetchDescriptor<Income>(predicate: #Predicate { $0.teamID == teamID })
+        (try? modelContext.fetch(incomeDesc))?.forEach { modelContext.delete($0) }
+
+        let fundDesc = FetchDescriptor<TourFund>(predicate: #Predicate { $0.teamID == teamID })
+        (try? modelContext.fetch(fundDesc))?.forEach { modelContext.delete($0) }
+
+        let journalDesc = FetchDescriptor<Journal>(predicate: #Predicate { $0.teamID == teamID })
+        (try? modelContext.fetch(journalDesc))?.forEach { modelContext.delete($0) }
+
+        let docDesc = FetchDescriptor<TourDocument>(predicate: #Predicate { $0.teamID == teamID })
+        (try? modelContext.fetch(docDesc))?.forEach { modelContext.delete($0) }
+
         modelContext.delete(team)
     }
 

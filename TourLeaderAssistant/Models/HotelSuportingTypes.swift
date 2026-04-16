@@ -1,6 +1,6 @@
 import Foundation
 
-struct FloorsAndHours: Codable, @unchecked Sendable {
+struct FloorsAndHours: Codable, Sendable {
     var lobbyFloor: String = ""
     var poolFloor: String = ""
     var gymFloor: String = ""
@@ -12,20 +12,20 @@ struct FloorsAndHours: Codable, @unchecked Sendable {
     var gymHours: String = ""
 }
 
-struct HotelWifi: Codable, @unchecked Sendable {
+struct HotelWifi: Codable, Sendable {
     var network: String = ""
     var password: String = ""
     var loginMethod: String = ""
 }
 
-struct PhoneDialing: Codable, @unchecked Sendable {
+struct PhoneDialing: Codable, Sendable {
     var roomToFront: String = ""
     var roomToRoom: String = ""
     var outsideLine: String = ""
     var notes: String = ""
 }
 
-struct HotelAmenities: Codable, @unchecked Sendable {
+struct HotelAmenities: Codable, Sendable {
     var roomAmenities: [String] = []
     var hotelFacilities: [String] = []
 }

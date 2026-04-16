@@ -6,6 +6,8 @@ struct PlacePhotoManageView: View {
     @Environment(\.modelContext) private var modelContext
 
     let placeID: UUID
+    let placeType: String
+    let remoteID: UUID?
     let maxPhotos: Int
 
     @Query private var allPhotos: [PlacePhoto]
@@ -20,10 +22,19 @@ struct PlacePhotoManageView: View {
     @State private var fullscreenPhoto: PlacePhoto? = nil
     @State private var isProcessing = false
 
+    @State private var isSyncing = false
+    @State private var syncMessage: String? = nil
+    @State private var showingUploadConfirm = false
+    @State private var showingRefreshConfirm = false
+
     var photos: [PlacePhoto] {
         allPhotos
-            .filter { $0.placeID == placeID }
+            .filter { $0.placeID == placeID && !$0.needsDelete }
             .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    var hasPendingChanges: Bool {
+        allPhotos.filter { $0.placeID == placeID }.contains { $0.needsUpload || $0.needsDelete }
     }
 
     var canAddMore: Bool { photos.count < maxPhotos }
@@ -33,40 +44,83 @@ struct PlacePhotoManageView: View {
         ZStack {
             Color("AppBackground").ignoresSafeArea()
 
-            if photos.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.title)
-                        .foregroundStyle(Color("AppAccent").opacity(0.4))
-                    Text("尚無照片")
-                        .font(.callout).fontWeight(.semibold)
-                    Text("點右上角 ＋ 新增")
-                        .font(.subheadline)
-                        .foregroundStyle(Color(.systemGray))
+            VStack(spacing: 0) {
+                if let message = syncMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(Color("AppSecondary"))
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color("AppCard"))
                 }
-            } else {
-                ScrollView {
-                    LazyVGrid(
-                        columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
-                        spacing: 4
-                    ) {
-                        ForEach(photos) { photo in
-                            PhotoGridCell(
-                                photo: photo,
-                                isEditing: isEditing,
-                                onTap: { if !isEditing { fullscreenPhoto = photo } },
-                                onDelete: { deletePhoto(photo) }
-                            )
+
+                if photos.isEmpty && !hasPendingChanges {
+                    Spacer()
+                    VStack(spacing: 16) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.title)
+                            .foregroundStyle(Color("AppAccent").opacity(0.4))
+                        Text("尚無照片")
+                            .font(.callout).fontWeight(.semibold)
+                        Text("點右上角 ＋ 新增")
+                            .font(.subheadline)
+                            .foregroundStyle(Color(.systemGray))
+                    }
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVGrid(
+                            columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                            spacing: 4
+                        ) {
+                            ForEach(photos) { photo in
+                                PhotoGridCell(
+                                    photo: photo,
+                                    isEditing: isEditing,
+                                    onTap: { if !isEditing { fullscreenPhoto = photo } },
+                                    onDelete: { deletePhoto(photo) }
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.top, 4)
+
+                        // 雲端操作按鈕（只有已同步到雲端的地點才顯示）
+                        if remoteID != nil {
+                            VStack(spacing: 12) {
+                                if hasPendingChanges {
+                                    Button {
+                                        showingUploadConfirm = true
+                                    } label: {
+                                        Label("同步雲端照片", systemImage: "arrow.up.circle")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(Color("AppAccent"))
+                                    .disabled(isSyncing)
+                                }
+
+                                Button {
+                                    showingRefreshConfirm = true
+                                } label: {
+                                    Label("更新本地照片", systemImage: "arrow.down.circle")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(Color("AppSecondary"))
+                                .disabled(isSyncing)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 20)
                         }
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.top, 4)
                 }
             }
 
-            if isProcessing {
+            if isProcessing || isSyncing {
                 Color.black.opacity(0.3).ignoresSafeArea()
-                ProgressView("處理中…")
+                ProgressView(isSyncing ? "同步中…" : "處理中…")
                     .padding(20)
                     .background(Color("AppCard"))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -77,11 +131,16 @@ struct PlacePhotoManageView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
-                    if !photos.isEmpty {
-                        Button(isEditing ? "完成" : "編輯") {
-                            isEditing.toggle()
+                    if !photos.isEmpty || isEditing {
+                        HStack(spacing: 6) {
+                            if hasPendingChanges {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundStyle(Color("AppAccent"))
+                                    .font(.subheadline)
+                            }
+                            Button(isEditing ? "完成" : "編輯") { isEditing.toggle() }
+                                .foregroundStyle(Color("AppAccent"))
                         }
-                        .foregroundStyle(Color("AppAccent"))
                     }
                     if canAddMore && !isEditing {
                         Button {
@@ -121,7 +180,21 @@ struct PlacePhotoManageView: View {
         .fullScreenCover(item: $fullscreenPhoto) { photo in
             PhotoFullscreenView(photo: photo, photos: photos)
         }
+        .alert("同步雲端照片", isPresented: $showingUploadConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("確認上傳") { Task { await syncToCloud() } }
+        } message: {
+            Text("將把本機的照片新增與刪除同步到雲端，其他裝置同步後也會看到變更。確定繼續嗎？")
+        }
+        .alert("更新本地照片", isPresented: $showingRefreshConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("確認更新", role: .destructive) { Task { await refreshFromCloud() } }
+        } message: {
+            Text("將清除本機所有照片，並重新從雲端下載。本機尚未同步的照片將會遺失。確定繼續嗎？")
+        }
     }
+
+    // MARK: - 照片操作
 
     private func processSelectedItems() async {
         isProcessing = true
@@ -146,11 +219,50 @@ struct PlacePhotoManageView: View {
             sortOrder: nextOrder
         )
         modelContext.insert(photo)
+        syncMessage = nil
     }
 
     private func deletePhoto(_ photo: PlacePhoto) {
         PlacePhotoManager.shared.delete(fileName: photo.fileName)
-        modelContext.delete(photo)
+        if photo.remoteURL != nil {
+            photo.needsDelete = true
+            photo.needsUpload = false
+        } else {
+            modelContext.delete(photo)
+        }
+        syncMessage = nil
+    }
+
+    // MARK: - 同步雲端照片
+
+    private func syncToCloud() async {
+        guard let remoteID else { return }
+        isSyncing = true
+        syncMessage = nil
+        let result = await SupabaseManager.shared.syncPhotos(
+            for: placeID,
+            placeType: placeType,
+            remoteID: remoteID,
+            context: modelContext
+        )
+        isSyncing = false
+        syncMessage = result.summary
+    }
+
+    // MARK: - 更新本地照片
+
+    private func refreshFromCloud() async {
+        guard let remoteID else { return }
+        isSyncing = true
+        syncMessage = nil
+        let success = await SupabaseManager.shared.resetLocalPhotos(
+            for: placeID,
+            placeType: placeType,
+            remoteID: remoteID,
+            context: modelContext
+        )
+        isSyncing = false
+        syncMessage = success ? "已從雲端重新下載照片" : "更新失敗，請確認網路連線"
     }
 }
 
@@ -195,6 +307,14 @@ struct PhotoGridCell: View {
                         .background(Color.black.opacity(0.6), in: Circle())
                 }
                 .padding(4)
+            }
+
+            if photo.needsUpload && !isEditing {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .background(Color("AppAccent"), in: Circle())
+                    .padding(4)
             }
         }
     }

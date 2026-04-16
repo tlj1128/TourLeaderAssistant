@@ -16,7 +16,7 @@ class PlacePhotoManager {
         return dir
     }
 
-    // MARK: - 儲存
+    // MARK: - 儲存（本機新增照片用）
 
     /// 壓縮並儲存照片，回傳檔名（儲存失敗回傳 nil）
     func save(image: UIImage) -> String? {
@@ -35,6 +35,26 @@ class PlacePhotoManager {
         }
     }
 
+    // MARK: - 快取（從雲端下載後寫入本機用）
+
+    /// 將下載回來的 Data 寫入本機快取，fileName 由 remoteURL 的最後路徑元件決定
+    func cachePhoto(data: Data, fileName: String) -> Bool {
+        let fileURL = photosDirectory.appendingPathComponent(fileName)
+        do {
+            try data.write(to: fileURL)
+            return true
+        } catch {
+            print("PlacePhotoManager 快取失敗：\(error)")
+            return false
+        }
+    }
+
+    /// 檢查本機是否已有該檔名的快取
+    func hasCached(fileName: String) -> Bool {
+        let fileURL = photosDirectory.appendingPathComponent(fileName)
+        return FileManager.default.fileExists(atPath: fileURL.path)
+    }
+
     // MARK: - 讀取
 
     func loadImage(fileName: String) -> UIImage? {
@@ -42,6 +62,12 @@ class PlacePhotoManager {
         return UIImage(contentsOfFile: fileURL.path)
     }
 
+    /// 讀取照片原始 Data（上傳用）
+    func loadImageData(fileName: String) -> Data? {
+        let fileURL = photosDirectory.appendingPathComponent(fileName)
+        return try? Data(contentsOf: fileURL)
+    }
+    
     // MARK: - 刪除
 
     func delete(fileName: String) {
@@ -68,9 +94,9 @@ class PlacePhotoManager {
         return String(format: "%.1f MB", mb)
     }
 
-    func clearCache() {
+    func clearCache(excluding fileNames: Set<String> = []) {
         let files = (try? FileManager.default.contentsOfDirectory(atPath: photosDirectory.path)) ?? []
-        for name in files {
+        for name in files where !fileNames.contains(name) {
             let url = photosDirectory.appendingPathComponent(name)
             try? FileManager.default.removeItem(at: url)
         }

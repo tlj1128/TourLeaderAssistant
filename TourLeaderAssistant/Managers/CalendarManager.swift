@@ -12,10 +12,11 @@ class CalendarManager {
         store.calendars(for: .event).filter { $0.allowsContentModifications }
     }
 
-    func requestAccess(completion: @escaping (Bool) -> Void) {
-        store.requestFullAccessToEvents { granted, _ in
+    // completion 改為回傳 (Bool, Error?)，讓 UI 層可區分拒絕與系統錯誤
+    func requestAccess(completion: @escaping (Bool, Error?) -> Void) {
+        store.requestFullAccessToEvents { granted, error in
             DispatchQueue.main.async {
-                completion(granted)
+                completion(granted, error)
             }
         }
     }
@@ -26,8 +27,17 @@ class CalendarManager {
         event.notes = "團號：\(team.tourCode)"
         event.isAllDay = true
         event.startDate = team.departureDate
-        // 行事曆全天事件的結束日要加一天
-        event.endDate = Calendar.current.date(byAdding: .day, value: 1, to: team.returnDate)!
+
+        // 修正強制解包：全天事件結束日加一天，失敗時 fallback 到 returnDate
+        guard let endDate = Calendar.current.date(byAdding: .day, value: 1, to: team.returnDate) else {
+            print("CalendarManager：無法計算結束日，fallback 到 returnDate")
+            event.endDate = team.returnDate
+            event.calendar = calendar
+            try? store.save(event, span: .thisEvent)
+            team.calendarEventID = event.eventIdentifier
+            return
+        }
+        event.endDate = endDate
         event.calendar = calendar
 
         do {

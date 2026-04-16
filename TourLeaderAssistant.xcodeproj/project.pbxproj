@@ -7,11 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		93508DCF2F8F52F2006808F1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93508DCE2F8F52F2006808F1 /* StoreKit.framework */; };
 		93DB31092F839626001E7AC7 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 93DB31082F839626001E7AC7 /* Supabase */; };
+		93DFA5E72F84D87D00F64A14 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 93DFA5E62F84D87D00F64A14 /* Release.xcconfig */; };
+		93DFA5E82F84D87D00F64A14 /* Debug.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 93DFA5E52F84D87D00F64A14 /* Debug.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		93508DCE2F8F52F2006808F1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		93DE9F6B2F7AAB250083B3FD /* TourLeaderAssistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TourLeaderAssistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		93DFA5E52F84D87D00F64A14 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		93DFA5E62F84D87D00F64A14 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -41,17 +47,29 @@
 			buildActionMask = 2147483647;
 			files = (
 				93DB31092F839626001E7AC7 /* Supabase in Frameworks */,
+				93508DCF2F8F52F2006808F1 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		93508DCD2F8F52F2006808F1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				93508DCE2F8F52F2006808F1 /* StoreKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		93DE9F622F7AAB250083B3FD = {
 			isa = PBXGroup;
 			children = (
 				93DE9F6D2F7AAB250083B3FD /* TourLeaderAssistant */,
 				93DE9F6C2F7AAB250083B3FD /* Products */,
+				93DFA5E52F84D87D00F64A14 /* Debug.xcconfig */,
+				93DFA5E62F84D87D00F64A14 /* Release.xcconfig */,
+				93508DCD2F8F52F2006808F1 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -132,6 +150,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93DFA5E72F84D87D00F64A14 /* Release.xcconfig in Resources */,
+				93DFA5E82F84D87D00F64A14 /* Debug.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,6 +170,7 @@
 /* Begin XCBuildConfiguration section */
 		93DE9F762F7AAB260083B3FD /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 93DFA5E52F84D87D00F64A14 /* Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -214,6 +235,7 @@
 		};
 		93DE9F772F7AAB260083B3FD /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 93DFA5E62F84D87D00F64A14 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -271,16 +293,18 @@
 		};
 		93DE9F792F7AAB260083B3FD /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 93DFA5E52F84D87D00F64A14 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3W57RX3XDL;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = D8GDCSY2WN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TourLeaderAssistant/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "領隊助手";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用於記錄出團與回國日期";
 				INFOPLIST_KEY_NSCameraUsageDescription = "用於拍攝地點照片";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "用於拍照後儲存至系統相簿";
@@ -310,16 +334,19 @@
 		};
 		93DE9F7A2F7AAB260083B3FD /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 93DFA5E62F84D87D00F64A14 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TourLeaderAssistant/TourLeaderAssistantRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3W57RX3XDL;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = D8GDCSY2WN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TourLeaderAssistant/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "領隊助手";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "用於記錄出團與回國日期";
 				INFOPLIST_KEY_NSCameraUsageDescription = "用於拍攝地點照片";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "用於拍照後儲存至系統相簿";

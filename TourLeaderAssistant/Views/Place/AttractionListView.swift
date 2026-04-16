@@ -4,6 +4,7 @@ import SwiftData
 struct AttractionListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PlaceAttraction.nameEN) private var attractions: [PlaceAttraction]
+    @Query private var allPhotos: [PlacePhoto]
 
     let searchText: String
 
@@ -14,6 +15,11 @@ struct AttractionListView: View {
             $0.nameZH.localizedCaseInsensitiveContains(searchText) ||
             $0.city?.displayName.localizedCaseInsensitiveContains(searchText) == true
         }
+    }
+
+    func hasBadge(_ attraction: PlaceAttraction) -> Bool {
+        attraction.needsSync ||
+        allPhotos.contains { $0.placeID == attraction.id && ($0.needsUpload || $0.needsDelete) }
     }
 
     var body: some View {
@@ -28,7 +34,7 @@ struct AttractionListView: View {
             } else {
                 ForEach(filtered) { attraction in
                     NavigationLink(destination: AttractionDetailView(attraction: attraction)) {
-                        AttractionRowView(attraction: attraction)
+                        AttractionRowView(attraction: attraction, showBadge: hasBadge(attraction))
                     }
                     .listRowBackground(Color("AppCard"))
                 }
@@ -57,6 +63,7 @@ struct AttractionListView: View {
 
 struct AttractionRowView: View {
     let attraction: PlaceAttraction
+    var showBadge: Bool = false
 
     var phoneDisplay: String? {
         guard !attraction.phone.isEmpty else { return nil }
@@ -66,31 +73,33 @@ struct AttractionRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // 英文名稱（主）
-            Text(attraction.nameEN)
-                .font(.body).fontWeight(.semibold)
-                .foregroundStyle(.primary)
+            HStack(spacing: 6) {
+                Text(attraction.nameEN)
+                    .font(.body).fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                if showBadge {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color("AppAccent"))
+                }
+            }
 
-            // 中文名稱（有才顯示）
             if !attraction.nameZH.isEmpty {
                 Text(attraction.nameZH)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            // 電話（有才顯示）
             if let phone = phoneDisplay {
                 Text(phone)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            // 國旗 + 國家（英文）+ 城市（英文）
             if let city = attraction.city {
                 HStack(spacing: 4) {
                     if let code = city.country?.code {
-                        Text(code.flag)
-                            .font(.footnote)
+                        Text(code.flag).font(.footnote)
                     }
                     let countryEN = city.country?.nameEN ?? ""
                     let cityEN = city.nameEN.isEmpty ? city.nameZH : city.nameEN

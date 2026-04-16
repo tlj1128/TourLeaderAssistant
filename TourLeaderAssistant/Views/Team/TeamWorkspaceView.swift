@@ -112,9 +112,11 @@ struct TeamWorkspaceView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(team.tourCode)
-                            .font(.footnote)
-                            .foregroundStyle(Color(.systemGray))
+                        if !team.tourCode.isEmpty {
+                            Text(team.tourCode)
+                                .font(.footnote)
+                                .foregroundStyle(Color(.systemGray))
+                        }
                         Text(team.name)
                             .font(.title2).fontWeight(.bold)
                             .foregroundStyle(.primary)
@@ -124,6 +126,13 @@ struct TeamWorkspaceView: View {
                 }
 
                 Divider()
+                
+                if let notes = team.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.footnote)
+                        .foregroundStyle(Color(.systemGray))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
 
                 HStack(spacing: 0) {
                     infoItem(icon: "calendar", text: {

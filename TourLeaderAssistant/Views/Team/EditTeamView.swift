@@ -32,7 +32,7 @@ struct EditTeamView: View {
     }
 
     var isFormValid: Bool {
-        !tourCode.isEmpty && !name.isEmpty && days > 0
+        !name.isEmpty && days > 0
     }
 
     var selectedCountryFlags: String {
@@ -43,7 +43,7 @@ struct EditTeamView: View {
         NavigationStack {
             Form {
                 Section("基本資料") {
-                    LabeledTextField(label: "團號", placeholder: "TC20260619TK1", text: $tourCode)
+                    LabeledTextField(label: "團號", placeholder: "TC20260619TK1（選填）", text: $tourCode)
                         .autocorrectionDisabled()
                     LabeledTextField(label: "團名", placeholder: "納米比亞 16 天", text: $name)
                     DatePicker("出發日期", selection: $departureDate, displayedComponents: .date)
