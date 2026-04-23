@@ -48,6 +48,13 @@ struct ExpenseListView: View {
     }
 
     var currency: String { pettyCash?.currency ?? "" }
+    
+    var baseCurrency: String {
+        if let pettyCash = teamFunds.first(where: { $0.typeName == "零用金" }) {
+            return pettyCash.currency
+        }
+        return teamFunds.first { $0.isReimbursable }?.currency ?? "USD"
+    }
 
     var body: some View {
         ZStack {
@@ -87,7 +94,7 @@ struct ExpenseListView: View {
             }
         }
         .sheet(isPresented: $showingAddExpense) {
-            AddExpenseView(team: team, lastExpense: expenses.first)
+            AddExpenseView(team: team, lastExpense: expenses.first, baseCurrency: baseCurrency)
                 .appDynamicTypeSize(textSizePreference)
         }
         .sheet(item: $selectedExpense) { expense in

@@ -5,6 +5,7 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearance = "auto"
     @AppStorage("savePhotoToAlbum") private var savePhotoToAlbum = true
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
+    @AppStorage("useLocalAI") private var useLocalAI = false
 
     @Environment(\.modelContext) private var modelContext
     @Query private var hotels: [PlaceHotel]
@@ -14,11 +15,20 @@ struct SettingsView: View {
 
     @State private var showClearCacheAlert = false
     @State private var showUnsyncedWarning = false
+    @State private var showFeedback = false
     @State private var unsyncedCount = 0
     @State private var downloadedCount = 0
 
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     private let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+
+    /// 是否支援 Apple Intelligence（iOS 26+ 且模型可用）
+    private var isAppleIntelligenceSupported: Bool {
+        if #available(iOS 26, *) {
+            return FoundationModelManager.shared.isAvailable
+        }
+        return false
+    }
 
     var body: some View {
         NavigationStack {
@@ -28,7 +38,7 @@ struct SettingsView: View {
                         Label("個人基本資料", systemImage: "person.circle")
                     }
                 }
-                
+
                 Section("備份與還原") {
                     NavigationLink(destination: iCloudBackupView()) {
                         Label("iCloud 備份", systemImage: "icloud")
@@ -83,6 +93,34 @@ struct SettingsView: View {
                     }
                 }
 
+                // MARK: - Apple Intelligence
+                Section {
+                    if isAppleIntelligenceSupported {
+                        Toggle(isOn: $useLocalAI) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Apple Intelligence 輔助")
+                                Text("啟用後將使用裝置內建 Apple Intelligence 進行語意輔助分析")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } else {
+                        HStack(spacing: 12) {
+                            Image(systemName: "apple.intelligence")
+                                .foregroundStyle(Color(.systemGray3))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Apple Intelligence 輔助")
+                                    .foregroundStyle(Color(.systemGray))
+                                Text("需要 iPhone 15 Pro 以上裝置並已開啟 Apple Intelligence")
+                                    .font(.caption)
+                                    .foregroundStyle(Color(.systemGray3))
+                            }
+                        }
+                    }
+                } header: {
+                    Text("智慧功能")
+                }
+
                 Section("地點庫快取") {
                     LabeledContent("照片快取大小") {
                         Text(PlacePhotoManager.shared.cacheSize())
@@ -110,24 +148,53 @@ struct SettingsView: View {
                     NavigationLink(destination: DonateView()) {
                         Label("請開發者喝一杯", systemImage: "cup.and.saucer")
                     }
-                    .foregroundStyle(.primary)
+
+                    Button {
+                        UIApplication.shared.open(AppConfigManager.shared.linktreeURL)
+                    } label: {
+                        Label {
+                            Text("關注「消業障旅行團」")
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemName: "mic")
+                        }
+                    }
 
                     Button {
                         if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
                             UIApplication.shared.open(url)
                         }
                     } label: {
-                        Label("為 App 評分", systemImage: "star")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text("為 App 評分")
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemName: "star")
+                        }
                     }
 
                     Button {
-                        if let url = URL(string: "mailto:your@email.com?subject=領隊助手意見回饋") {
-                            UIApplication.shared.open(url)
-                        }
+                        showFeedback = true
                     } label: {
-                        Label("意見回饋", systemImage: "envelope")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text("意見回饋")
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemName: "envelope")
+                        }
+                    }
+                }
+
+                Section("說明") {
+                    Button {
+                        UIApplication.shared.open(AppConfigManager.shared.userGuideURL)
+                    } label: {
+                        Label {
+                            Text("使用說明")
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemName: "questionmark.circle")
+                        }
                     }
                 }
 
@@ -153,40 +220,38 @@ struct SettingsView: View {
             } message: {
                 Text("有 \(unsyncedCount) 個地點有未同步的修改，清除後將遺失。確定繼續？")
             }
+            .sheet(isPresented: $showFeedback) {
+                FeedbackView()
+                    .appDynamicTypeSize(textSizePreference)
+            }
         }
     }
 
     // MARK: - Logic
 
     private func clearDownloadedPlaces() {
-        // 收集要保留的照片（本機新增，從未上傳）
         let keepFileNames = Set(allPhotos.filter { $0.remoteURL == nil && $0.needsUpload }.map { $0.fileName })
 
-        // 找出從雲端下載的地點
         let downloadedHotels = hotels.filter { $0.remoteID != nil }
         let downloadedRestaurants = restaurants.filter { $0.remoteID != nil }
         let downloadedAttractions = attractions.filter { $0.remoteID != nil }
 
-        // 收集這些地點的 placeID
         let downloadedPlaceIDs = Set(
             downloadedHotels.map { $0.id } +
             downloadedRestaurants.map { $0.id } +
             downloadedAttractions.map { $0.id }
         )
 
-        // 刪除對應的 PlacePhoto 記錄
         for photo in allPhotos where downloadedPlaceIDs.contains(photo.placeID) {
             modelContext.delete(photo)
         }
 
-        // 刪除地點資料
         downloadedHotels.forEach { modelContext.delete($0) }
         downloadedRestaurants.forEach { modelContext.delete($0) }
         downloadedAttractions.forEach { modelContext.delete($0) }
 
         try? modelContext.save()
 
-        // 清除照片檔案（保留本機新增的）
         PlacePhotoManager.shared.clearCache(excluding: keepFileNames)
     }
 }

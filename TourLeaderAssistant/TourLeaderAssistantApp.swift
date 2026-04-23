@@ -21,7 +21,8 @@ struct TourLeaderAssistantApp: App {
                 PlaceAttraction.self,
                 PlacePhoto.self,
                 CustomFundType.self,
-                CustomIncomeType.self
+                CustomIncomeType.self,
+                TourMember.self
             ])
             let config = ModelConfiguration(
                 schema: schema,
@@ -35,7 +36,9 @@ struct TourLeaderAssistantApp: App {
         }
         Task {
             let ok = await SupabaseManager.shared.testConnection()
-            print("Supabase 連線：\(ok ? "成功" : "失敗")")
+                print("Supabase 連線：\(ok ? "成功" : "失敗")")
+                await AppConfigManager.shared.fetchConfig()
+                await ExchangeRateManager.shared.fetchIfNeeded()
         }
     }
 

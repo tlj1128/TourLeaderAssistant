@@ -50,147 +50,142 @@ struct EditHotelView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("名稱") {
-                    LabeledTextField(label: "英文名稱", placeholder: "Windhoek Country Club", text: $nameEN)
-                        .autocorrectionDisabled()
-                    LabeledTextField(label: "中文名稱", placeholder: "溫得和克鄉村俱樂部", text: $nameZH)
+        Form {
+            Section("名稱") {
+                LabeledTextField(label: "英文名稱", placeholder: "Windhoek Country Club", text: $nameEN)
+                    .autocorrectionDisabled()
+                LabeledTextField(label: "中文名稱", placeholder: "溫得和克鄉村俱樂部", text: $nameZH)
+            }
+
+            Section("位置") {
+                Button {
+                    showingCountryPicker = true
+                } label: {
+                    HStack {
+                        Text("國家")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if let country = selectedCountry {
+                            Text(country.nameZH)
+                                .foregroundStyle(.primary)
+                        } else {
+                            Text("未選擇")
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                Section("位置") {
+                if selectedCountry != nil {
                     Button {
-                        showingCountryPicker = true
+                        showingCityPicker = true
                     } label: {
                         HStack {
-                            Text("國家")
+                            Text("城市")
                                 .foregroundStyle(.primary)
                             Spacer()
-                            if let country = selectedCountry {
-                                Text(country.nameZH)
-                                    .foregroundStyle(.primary)
-                            } else {
-                                Text("未選擇")
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(selectedCity?.displayName ?? "未選擇")
+                                .foregroundStyle(selectedCity == nil ? .secondary : .primary)
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
+                }
 
-                    if selectedCountry != nil {
-                        Button {
-                            showingCityPicker = true
-                        } label: {
-                            HStack {
-                                Text("城市")
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Text(selectedCity?.displayName ?? "未選擇")
-                                    .foregroundStyle(selectedCity == nil ? .secondary : .primary)
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                LabeledTextField(label: "地址", placeholder: "Ludwig von Estorff St", text: $address)
+            }
+
+            Section("聯絡") {
+                LabeledTextField(
+                    label: phoneLabel,
+                    placeholder: "不含國碼，例：03-1234-5678",
+                    text: $phone
+                )
+                .keyboardType(.phonePad)
+            }
+
+            Section("樓層") {
+                LabeledTextField(label: "大廳", placeholder: "1F", text: $lobbyFloor)
+                LabeledTextField(label: "早餐餐廳", placeholder: "3F", text: $breakfastRestaurantFloor)
+                LabeledTextField(label: "晚餐餐廳", placeholder: "3F", text: $dinnerRestaurantFloor)
+                LabeledTextField(label: "游泳池", placeholder: "RF", text: $poolFloor)
+                LabeledTextField(label: "健身房", placeholder: "2F", text: $gymFloor)
+            }
+
+            Section("開放時間") {
+                LabeledTextField(label: "早餐", placeholder: "06:30–10:00", text: $breakfastHours)
+                LabeledTextField(label: "晚餐", placeholder: "18:00–21:00", text: $dinnerHours)
+                LabeledTextField(label: "游泳池", placeholder: "07:00–20:00", text: $poolHours)
+                LabeledTextField(label: "健身房", placeholder: "07:00–22:00", text: $gymHours)
+            }
+
+            Section("Wi-Fi") {
+                LabeledTextField(label: "網路名稱", placeholder: "Hotel_Guest", text: $wifiNetwork)
+                    .autocorrectionDisabled()
+                LabeledTextField(label: "密碼", placeholder: "abc12345", text: $wifiPassword)
+                    .autocorrectionDisabled()
+                LabeledTextField(label: "連線方式", placeholder: "直接連線 / 密碼在房卡套上", text: $wifiLoginMethod)
+            }
+
+            Section("撥號方式") {
+                LabeledTextField(label: "房間→櫃台", placeholder: "0", text: $dialRoomToFront)
+                LabeledTextField(label: "房間→房間", placeholder: "8+房號", text: $dialRoomToRoom)
+                LabeledTextField(label: "外線", placeholder: "9", text: $dialOutside)
+                LabeledTextField(label: "備註", placeholder: "", text: $dialNotes)
+            }
+
+            Section("房間備品") {
+                ForEach(RoomAmenity.allCases, id: \.rawValue) { item in
+                    Toggle(item.rawValue, isOn: Binding(
+                        get: { selectedRoomAmenities.contains(item.rawValue) },
+                        set: {
+                            if $0 { selectedRoomAmenities.insert(item.rawValue) }
+                            else { selectedRoomAmenities.remove(item.rawValue) }
                         }
-                    }
-
-                    LabeledTextField(label: "地址", placeholder: "Ludwig von Estorff St", text: $address)
-                }
-
-                Section("聯絡") {
-                    LabeledTextField(
-                        label: phoneLabel,
-                        placeholder: "不含國碼，例：03-1234-5678",
-                        text: $phone
-                    )
-                    .keyboardType(.phonePad)
-                }
-
-                Section("樓層") {
-                    LabeledTextField(label: "大廳", placeholder: "1F", text: $lobbyFloor)
-                    LabeledTextField(label: "早餐餐廳", placeholder: "3F", text: $breakfastRestaurantFloor)
-                    LabeledTextField(label: "晚餐餐廳", placeholder: "3F", text: $dinnerRestaurantFloor)
-                    LabeledTextField(label: "游泳池", placeholder: "RF", text: $poolFloor)
-                    LabeledTextField(label: "健身房", placeholder: "2F", text: $gymFloor)
-                }
-
-                Section("開放時間") {
-                    LabeledTextField(label: "早餐", placeholder: "06:30–10:00", text: $breakfastHours)
-                    LabeledTextField(label: "晚餐", placeholder: "18:00–21:00", text: $dinnerHours)
-                    LabeledTextField(label: "游泳池", placeholder: "07:00–20:00", text: $poolHours)
-                    LabeledTextField(label: "健身房", placeholder: "07:00–22:00", text: $gymHours)
-                }
-
-                Section("Wi-Fi") {
-                    LabeledTextField(label: "網路名稱", placeholder: "Hotel_Guest", text: $wifiNetwork)
-                        .autocorrectionDisabled()
-                    LabeledTextField(label: "密碼", placeholder: "abc12345", text: $wifiPassword)
-                        .autocorrectionDisabled()
-                    LabeledTextField(label: "連線方式", placeholder: "直接連線 / 密碼在房卡套上", text: $wifiLoginMethod)
-                }
-
-                Section("撥號方式") {
-                    LabeledTextField(label: "房間→櫃台", placeholder: "0", text: $dialRoomToFront)
-                    LabeledTextField(label: "房間→房間", placeholder: "8+房號", text: $dialRoomToRoom)
-                    LabeledTextField(label: "外線", placeholder: "9", text: $dialOutside)
-                    LabeledTextField(label: "備註", placeholder: "", text: $dialNotes)
-                }
-
-                Section("房間備品") {
-                    ForEach(RoomAmenity.allCases, id: \.rawValue) { item in
-                        Toggle(item.rawValue, isOn: Binding(
-                            get: { selectedRoomAmenities.contains(item.rawValue) },
-                            set: {
-                                if $0 { selectedRoomAmenities.insert(item.rawValue) }
-                                else { selectedRoomAmenities.remove(item.rawValue) }
-                            }
-                        ))
-                    }
-                }
-
-                Section("飯店設施") {
-                    ForEach(HotelFacility.allCases, id: \.rawValue) { item in
-                        Toggle(item.rawValue, isOn: Binding(
-                            get: { selectedFacilities.contains(item.rawValue) },
-                            set: {
-                                if $0 { selectedFacilities.insert(item.rawValue) }
-                                else { selectedFacilities.remove(item.rawValue) }
-                            }
-                        ))
-                    }
-                }
-
-                Section("周邊資訊與備註") {
-                    TextEditor(text: $surroundingsAndNotes)
-                        .frame(minHeight: 100)
+                    ))
                 }
             }
-            .navigationTitle("編輯飯店")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("儲存") { save() }
-                        .disabled(nameEN.trimmingCharacters(in: .whitespaces).isEmpty)
+
+            Section("飯店設施") {
+                ForEach(HotelFacility.allCases, id: \.rawValue) { item in
+                    Toggle(item.rawValue, isOn: Binding(
+                        get: { selectedFacilities.contains(item.rawValue) },
+                        set: {
+                            if $0 { selectedFacilities.insert(item.rawValue) }
+                            else { selectedFacilities.remove(item.rawValue) }
+                        }
+                    ))
                 }
             }
-            .onAppear { loadData() }
-            .onChange(of: selectedCountry) {
-                if !isLoading { selectedCity = nil }
+
+            Section("周邊資訊與備註") {
+                TextEditor(text: $surroundingsAndNotes)
+                    .frame(minHeight: 100)
             }
-            .sheet(isPresented: $showingCountryPicker) {
-                CountryPickerView(selectedCountry: $selectedCountry)
+        }
+        .navigationTitle("編輯飯店")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("儲存") { save() }
+                    .disabled(nameEN.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .onAppear { loadData() }
+        .onChange(of: selectedCountry) {
+            if !isLoading { selectedCity = nil }
+        }
+        .sheet(isPresented: $showingCountryPicker) {
+            CountryPickerView(selectedCountry: $selectedCountry)
+                .appDynamicTypeSize(textSizePreference)
+        }
+        .sheet(isPresented: $showingCityPicker) {
+            if let country = selectedCountry {
+                CityPickerView(country: country, selectedCity: $selectedCity)
                     .appDynamicTypeSize(textSizePreference)
-            }
-            .sheet(isPresented: $showingCityPicker) {
-                if let country = selectedCountry {
-                    CityPickerView(country: country, selectedCity: $selectedCity)
-                        .appDynamicTypeSize(textSizePreference)
-                }
             }
         }
     }

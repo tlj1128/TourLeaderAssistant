@@ -20,6 +20,16 @@ struct EditExpenseView: View {
 
     let commonCurrencies = ["TWD", "USD", "EUR", "JPY", "GBP", "HKD", "AUD", "SGD", "KRW", "THB"]
 
+    @Query private var allFunds: [TourFund]
+
+    var baseCurrency: String {
+        let teamID = expense.teamID
+        return allFunds
+            .filter { $0.teamID == teamID && $0.isReimbursable }
+            .max(by: { $0.initialAmount < $1.initialAmount })?
+            .currency ?? "USD"
+    }
+
     init(expense: Expense) {
         self.expense = expense
         _date = State(initialValue: expense.date)
@@ -92,6 +102,13 @@ struct EditExpenseView: View {
                         .onChange(of: exchangeRate) { _, newValue in
                             exchangeRate = newValue.filter { $0.isNumber || $0 == "." }
                         }
+                    if let hint = ExchangeRateManager.shared.expenseRateHint(baseCurrency: baseCurrency, expenseCurrency: currency) {
+                        Text(hint)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                    }
 
                     if let converted = convertedAmount {
                         HStack {

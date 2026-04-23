@@ -46,6 +46,14 @@ struct AddTourFundView: View {
         !initialAmount.isEmpty && Decimal(string: initialAmount) != nil
     }
 
+    var hasPettyCash: Bool {
+        teamFunds.contains { $0.typeName == "零用金" }
+    }
+
+    var isPettyCashDuplicate: Bool {
+        selectedTypeName == "零用金" && hasPettyCash
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -75,6 +83,11 @@ struct AddTourFundView: View {
                 }
 
                 Section("新增資金") {
+                    if isPettyCashDuplicate {
+                        Text("零用金只能設定一筆")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                     Picker("類型", selection: $selectedTypeName) {
                         ForEach(allTypeNames, id: \.self) { name in
                             Text(name).tag(name)
@@ -108,13 +121,21 @@ struct AddTourFundView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("新增") { saveFund() }
-                        .disabled(!isFormValid)
+                        .disabled(!isFormValid || isPettyCashDuplicate)
                         .fontWeight(.semibold)
                 }
             }
             .onAppear {
                 if let first = suggestedCurrencies.first {
                     currency = first
+                }
+            }
+            .onChange(of: teamFunds) { _, funds in
+                let hasPC = funds.contains { $0.typeName == "零用金" }
+                if hasPC {
+                    selectedTypeName = allTypeNames.first { $0 != "零用金" } ?? DefaultFundType.otherName
+                } else {
+                    selectedTypeName = "零用金"
                 }
             }
         }
@@ -134,7 +155,11 @@ struct AddTourFundView: View {
 
         modelContext.insert(fund)
 
-        selectedTypeName = allTypeNames.first ?? "零用金"
+        if hasPettyCash {
+            selectedTypeName = allTypeNames.first { $0 != "零用金" } ?? DefaultFundType.otherName
+        } else {
+            selectedTypeName = "零用金"
+        }
         currency = suggestedCurrencies.first ?? "TWD"
         initialAmount = ""
         isReimbursable = true

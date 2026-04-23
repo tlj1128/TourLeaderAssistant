@@ -27,6 +27,8 @@ struct PlacePhotoManageView: View {
     @State private var showingUploadConfirm = false
     @State private var showingRefreshConfirm = false
 
+    private let network = NetworkMonitor.shared
+
     var photos: [PlacePhoto] {
         allPhotos
             .filter { $0.placeID == placeID && !$0.needsDelete }
@@ -35,6 +37,20 @@ struct PlacePhotoManageView: View {
 
     var hasPendingChanges: Bool {
         allPhotos.filter { $0.placeID == placeID }.contains { $0.needsUpload || $0.needsDelete }
+    }
+
+    var pendingUploadPhotoFileNames: [String] {
+        allPhotos.filter { $0.placeID == placeID && $0.needsUpload }.map { $0.fileName }
+    }
+
+    var uploadAlertMessage: String {
+        let base = "將把本機的照片新增與刪除同步到雲端，其他裝置同步後也會看到變更。確定繼續嗎？"
+        if network.isOnCellular && !pendingUploadPhotoFileNames.isEmpty {
+            let bytes = network.pendingUploadSize(fileNames: pendingUploadPhotoFileNames)
+            let sizeStr = network.formattedSize(bytes)
+            return "⚠️ 目前使用行動數據，預計上傳約 \(sizeStr)。\n\n\(base)"
+        }
+        return base
     }
 
     var canAddMore: Bool { photos.count < maxPhotos }
@@ -86,7 +102,6 @@ struct PlacePhotoManageView: View {
                         .padding(.horizontal, 4)
                         .padding(.top, 4)
 
-                        // 雲端操作按鈕（只有已同步到雲端的地點才顯示）
                         if remoteID != nil {
                             VStack(spacing: 12) {
                                 if hasPendingChanges {
@@ -184,7 +199,7 @@ struct PlacePhotoManageView: View {
             Button("取消", role: .cancel) {}
             Button("確認上傳") { Task { await syncToCloud() } }
         } message: {
-            Text("將把本機的照片新增與刪除同步到雲端，其他裝置同步後也會看到變更。確定繼續嗎？")
+            Text(uploadAlertMessage)
         }
         .alert("更新本地照片", isPresented: $showingRefreshConfirm) {
             Button("取消", role: .cancel) {}

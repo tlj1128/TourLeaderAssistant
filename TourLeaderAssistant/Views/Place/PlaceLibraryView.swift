@@ -21,6 +21,7 @@ struct PlaceLibraryView: View {
     @Query private var allAttractions: [PlaceAttraction]
     @Query private var allPhotos: [PlacePhoto]
 
+    private let network = NetworkMonitor.shared
     private var isSearching: Bool { !searchText.isEmpty }
 
     var hasPendingChanges: Bool {
@@ -40,6 +41,26 @@ struct PlaceLibraryView: View {
         allHotels.filter { $0.remoteID != nil }.count +
         allRestaurants.filter { $0.remoteID != nil }.count +
         allAttractions.filter { $0.remoteID != nil }.count
+    }
+
+    /// 待上傳照片的檔名清單（needsUpload = true）
+    var pendingUploadPhotoFileNames: [String] {
+        allPhotos.filter { $0.needsUpload }.map { $0.fileName }
+    }
+
+    var uploadAlertMessage: String {
+        let photoCount = allPhotos.filter { $0.needsUpload || $0.needsDelete }.count
+        let parts: [String] = [
+            pendingUploadCount > 0 ? "地點 \(pendingUploadCount) 筆" : nil,
+            photoCount > 0 ? "照片異動 \(photoCount) 張" : nil
+        ].compactMap { $0 }
+        let base = "將上傳 \(parts.joined(separator: "、")) 到雲端，供其他裝置同步使用。確定繼續嗎？"
+        if network.isOnCellular && !pendingUploadPhotoFileNames.isEmpty {
+            let bytes = network.pendingUploadSize(fileNames: pendingUploadPhotoFileNames)
+            let sizeStr = network.formattedSize(bytes)
+            return "⚠️ 目前使用行動數據，預計上傳約 \(sizeStr)。\n\n\(base)"
+        }
+        return base
     }
 
     var body: some View {
@@ -75,7 +96,6 @@ struct PlaceLibraryView: View {
                         if isSyncing {
                             ProgressView().scaleEffect(0.85)
                         } else {
-                            // 同步雲端（上傳）
                             Button {
                                 if hasPendingChanges {
                                     showingUploadConfirm = true
@@ -87,7 +107,6 @@ struct PlaceLibraryView: View {
                                     .foregroundStyle(Color("AppAccent"))
                             }
 
-                            // 更新本地（下載）
                             Button {
                                 showingRefreshConfirm = true
                             } label: {
@@ -121,12 +140,7 @@ struct PlaceLibraryView: View {
                     Task { await uploadToCloud() }
                 }
             } message: {
-                let photoCount = allPhotos.filter { $0.needsUpload || $0.needsDelete }.count
-                let parts: [String] = [
-                    pendingUploadCount > 0 ? "地點 \(pendingUploadCount) 筆" : nil,
-                    photoCount > 0 ? "照片異動 \(photoCount) 張" : nil
-                ].compactMap { $0 }
-                return Text("將上傳 \(parts.joined(separator: "、")) 到雲端，供其他裝置同步使用。確定繼續嗎？")
+                Text(uploadAlertMessage)
             }
             .alert("更新本地", isPresented: $showingRefreshConfirm) {
                 Button("取消", role: .cancel) {}

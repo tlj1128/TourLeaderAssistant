@@ -35,7 +35,7 @@ struct DefaultIncomeType {
     let iconName: String
 
     static let all: [DefaultIncomeType] = [
-        DefaultIncomeType(name: "領隊小費", iconName: "hand.thumbsup"),
+        DefaultIncomeType(name: "領隊服務費", iconName: "hand.thumbsup"),
         DefaultIncomeType(name: "出差費",   iconName: "suitcase"),
         DefaultIncomeType(name: "佣金",     iconName: "percent"),
     ]

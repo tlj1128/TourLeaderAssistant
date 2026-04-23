@@ -19,10 +19,13 @@ struct AddExpenseView: View {
     @State private var receiptNumber = ""
     @State private var paymentMethod: PaymentMethod? = nil
     @State private var notes = ""
+    
+    let baseCurrency: String
 
-    init(team: Team, lastExpense: Expense? = nil) {
+    init(team: Team, lastExpense: Expense? = nil, baseCurrency: String = "USD") {
         self.team = team
         self.lastExpense = lastExpense
+        self.baseCurrency = baseCurrency
         _date = State(initialValue: lastExpense?.date ?? Date())
         _location = State(initialValue: lastExpense?.location ?? "")
         _currency = State(initialValue: lastExpense?.currency ?? "USD")
@@ -96,6 +99,13 @@ struct AddExpenseView: View {
                         .onChange(of: exchangeRate) { _, newValue in
                             exchangeRate = newValue.filter { $0.isNumber || $0 == "." }
                         }
+                    if let hint = ExchangeRateManager.shared.expenseRateHint(baseCurrency: baseCurrency, expenseCurrency: currency) {
+                        Text(hint)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                    }
 
                     if let converted = convertedAmount {
                         HStack {

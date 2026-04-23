@@ -14,6 +14,8 @@ struct HotelDetailView: View {
     @Query private var allPhotos: [PlacePhoto]
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
+    private let network = NetworkMonitor.shared
+
     var photos: [PlacePhoto] {
         allPhotos
             .filter { $0.placeID == hotel.id && !$0.needsDelete }
@@ -25,12 +27,25 @@ struct HotelDetailView: View {
         allPhotos.filter { $0.placeID == hotel.id }.contains { $0.needsUpload || $0.needsDelete }
     }
 
+    var pendingUploadPhotoFileNames: [String] {
+        allPhotos.filter { $0.placeID == hotel.id && $0.needsUpload }.map { $0.fileName }
+    }
+
+    var uploadAlertMessage: String {
+        let base = "將把這筆資料與照片的異動同步到雲端，其他裝置同步後也會看到變更。確定繼續嗎？"
+        if network.isOnCellular && !pendingUploadPhotoFileNames.isEmpty {
+            let bytes = network.pendingUploadSize(fileNames: pendingUploadPhotoFileNames)
+            let sizeStr = network.formattedSize(bytes)
+            return "⚠️ 目前使用行動數據，預計上傳約 \(sizeStr)。\n\n\(base)"
+        }
+        return base
+    }
+
     var body: some View {
         ZStack {
             Color("AppBackground").ignoresSafeArea()
 
             List {
-                // 照片
                 Section {
                     NavigationLink(destination: PlacePhotoManageView(
                         placeID: hotel.id,
@@ -77,7 +92,6 @@ struct HotelDetailView: View {
                     Text("照片（\(photos.count)/10）")
                 }
 
-                // 異動提示
                 if hasPendingChanges && hotel.remoteID != nil {
                     Section {
                         HStack(spacing: 6) {
@@ -274,7 +288,7 @@ struct HotelDetailView: View {
             Button("取消", role: .cancel) {}
             Button("確認上傳") { Task { await syncToCloud() } }
         } message: {
-            Text("將把這筆資料與照片的異動同步到雲端，其他裝置同步後也會看到變更。確定繼續嗎？")
+            Text(uploadAlertMessage)
         }
         .alert("更新本地", isPresented: $showingRefreshConfirm) {
             Button("取消", role: .cancel) {}

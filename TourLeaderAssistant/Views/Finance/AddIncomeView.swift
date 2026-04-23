@@ -68,6 +68,13 @@ struct AddIncomeView: View {
                         .labelsHidden()
                         .tint(Color("AppAccent"))
                     }
+                    if let hint = ExchangeRateManager.shared.incomeRateHint(currency: currency) {
+                        Text(hint)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                    }
                 }
 
                 Section("備註") {
