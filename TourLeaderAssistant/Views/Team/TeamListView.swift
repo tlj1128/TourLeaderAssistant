@@ -90,7 +90,9 @@ struct TeamListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAddTeam) {
+            .sheet(isPresented: $showingAddTeam, onDismiss: {
+                updateTeamStatuses()
+            }) {
                 AddTeamView()
                     .appDynamicTypeSize(textSizePreference)
             }

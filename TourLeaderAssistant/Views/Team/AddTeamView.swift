@@ -149,6 +149,19 @@ struct AddTeamView: View {
             days: days
         )
         team.countryCodes = selectedCountryCodes
+
+        let today = Calendar.current.startOfDay(for: Date())
+        let departure = Calendar.current.startOfDay(for: departureDate)
+        let returnDay = Calendar.current.startOfDay(for: team.returnDate)
+
+        if today < departure {
+            team.status = .preparing
+        } else if today >= departure && today <= returnDay {
+            team.status = .inProgress
+        } else if today > returnDay {
+            team.status = .pendingClose
+        }
+
         modelContext.insert(team)
 
         if addToCalendar, let calendar = selectedCalendar {
