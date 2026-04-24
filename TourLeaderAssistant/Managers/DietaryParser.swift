@@ -61,9 +61,20 @@ struct DietaryParser {
             let useAI = UserDefaults.standard.bool(forKey: "useLocalAI")
             if useAI && FoundationModelManager.shared.isAvailable {
                 do {
-                    needs = try await supplementWithAI(remark: remark, existing: needs)
+                    needs = try await withThrowingTaskGroup(of: [DietaryNeed].self) { group in
+                        group.addTask {
+                            try await supplementWithAI(remark: remark, existing: needs)
+                        }
+                        group.addTask {
+                            try await Task.sleep(for: .seconds(5))
+                            throw CancellationError()
+                        }
+                        let result = try await group.next()!
+                        group.cancelAll()
+                        return result
+                    }
                 } catch {
-                    // AI 補充失敗，維持 rule-based 結果
+                    // AI 超時或失敗，維持 rule-based 結果
                 }
             }
         }

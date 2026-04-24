@@ -220,9 +220,7 @@ struct BackupFileInfo: Identifiable {
     }
 
     var formattedDate: String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy/MM/dd HH:mm"
-        return f.string(from: createdAt)
+        DateFormatter.backupDisplayDate.string(from: createdAt)
     }
 }
 
@@ -915,6 +913,11 @@ private extension DateFormatter {
     static let backupFileName: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd_HHmm"
+        return f
+    }()
+    static let backupDisplayDate: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy/MM/dd HH:mm"
         return f
     }()
 }

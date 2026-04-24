@@ -94,6 +94,7 @@ struct SettingsView: View {
                 }
 
                 // MARK: - Apple Intelligence
+                if false {
                 Section {
                     if isAppleIntelligenceSupported {
                         Toggle(isOn: $useLocalAI) {
@@ -120,6 +121,7 @@ struct SettingsView: View {
                 } header: {
                     Text("智慧功能")
                 }
+                } // if false
 
                 Section("地點庫快取") {
                     LabeledContent("照片快取大小") {

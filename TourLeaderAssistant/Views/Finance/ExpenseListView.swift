@@ -225,10 +225,12 @@ struct ExpenseListView: View {
 
     // MARK: - Helpers
 
+    private static let dateFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "MM/dd"; return f
+    }()
+
     private func formattedDate(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "MM/dd"
-        return f.string(from: date)
+        ExpenseListView.dateFmt.string(from: date)
     }
 
     private func dayTotal(for expenses: [Expense]) -> String {

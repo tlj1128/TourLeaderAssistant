@@ -72,15 +72,16 @@ class TourMember {
     /// 行程中有生日
     func hasBirthdayOnTrip(departureDate: Date, returnDate: Date) -> Bool {
         guard let bday = birthday else { return false }
-        let calendar = Calendar.current
-        let bdayComponents = calendar.dateComponents([.month, .day], from: bday)
-        guard let month = bdayComponents.month, let day = bdayComponents.day else { return false }
-
-        var current = departureDate
-        while current <= returnDate {
-            let c = calendar.dateComponents([.month, .day], from: current)
-            if c.month == month && c.day == day { return true }
-            current = calendar.date(byAdding: .day, value: 1, to: current) ?? returnDate.addingTimeInterval(86400)
+        let cal = Calendar.current
+        let comps = cal.dateComponents([.month, .day], from: bday)
+        guard let month = comps.month, let day = comps.day else { return false }
+        let depDay = cal.startOfDay(for: departureDate)
+        let retDay = cal.startOfDay(for: returnDate)
+        let depYear = cal.component(.year, from: depDay)
+        for offset in 0...1 {
+            guard let candidate = cal.date(from: DateComponents(year: depYear + offset, month: month, day: day))
+            else { continue }
+            if candidate >= depDay && candidate <= retDay { return true }
         }
         return false
     }

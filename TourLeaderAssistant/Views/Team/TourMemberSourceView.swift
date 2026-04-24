@@ -15,7 +15,7 @@ struct TourMemberSourceView: View {
         allDocuments.filter {
             $0.teamID == team.id &&
             $0.category == .roomingList &&
-            supportedExtensions.contains($0.fileURL.pathExtension.lowercased())
+            supportedExtensions.contains($0.resolvedURL.pathExtension.lowercased())
         }
         .sorted { $0.createdAt > $1.createdAt }
     }
@@ -23,7 +23,7 @@ struct TourMemberSourceView: View {
         allDocuments.filter {
             $0.teamID == team.id &&
             $0.category == .guestList &&
-            supportedExtensions.contains($0.fileURL.pathExtension.lowercased())
+            supportedExtensions.contains($0.resolvedURL.pathExtension.lowercased())
         }
         .sorted { $0.createdAt > $1.createdAt }
     }
@@ -33,7 +33,7 @@ struct TourMemberSourceView: View {
         allDocuments.filter {
             $0.teamID == team.id &&
             $0.category == .roomingList &&
-            imageExtensions.contains($0.fileURL.pathExtension.lowercased())
+            imageExtensions.contains($0.resolvedURL.pathExtension.lowercased())
         }
         .sorted { $0.createdAt > $1.createdAt }
     }
@@ -41,7 +41,7 @@ struct TourMemberSourceView: View {
         allDocuments.filter {
             $0.teamID == team.id &&
             $0.category == .guestList &&
-            imageExtensions.contains($0.fileURL.pathExtension.lowercased())
+            imageExtensions.contains($0.resolvedURL.pathExtension.lowercased())
         }
         .sorted { $0.createdAt > $1.createdAt }
     }
@@ -79,11 +79,11 @@ struct TourMemberSourceView: View {
                 Section {
                     if hasAnyDoc {
                         // 分房表（排除 PDF）
-                        ForEach(roomingDocs.filter { $0.fileURL.pathExtension.lowercased() != "pdf" }) { doc in
+                        ForEach(roomingDocs.filter { $0.resolvedURL.pathExtension.lowercased() != "pdf" }) { doc in
                             docRow(doc: doc, badge: "分房表")
                         }
                         // 團體大表（排除 PDF）
-                        ForEach(guestDocs.filter { $0.fileURL.pathExtension.lowercased() != "pdf" }) { doc in
+                        ForEach(guestDocs.filter { $0.resolvedURL.pathExtension.lowercased() != "pdf" }) { doc in
                             docRow(doc: doc, badge: "團體大表")
                         }
                     } else {
@@ -264,13 +264,13 @@ struct TourMemberSourceView: View {
         } label: {
             HStack(spacing: 12) {
                 // 副檔名標籤
-                Text(doc.fileURL.pathExtension.uppercased())
+                Text(doc.resolvedURL.pathExtension.uppercased())
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 5)
                     .frame(width: 46)
-                    .background(extensionColor(doc.fileURL.pathExtension))
+                    .background(extensionColor(doc.resolvedURL.pathExtension))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -296,7 +296,7 @@ struct TourMemberSourceView: View {
     
     private func imageDocRow(doc: TourDocument, badge: String) -> some View {
             Button {
-                guard let image = UIImage(contentsOfFile: resolveFileURL(doc).path) else {
+                guard let image = UIImage(contentsOfFile: doc.resolvedURL.path) else {
                     parseError = "無法讀取圖片"
                     return
                 }
@@ -335,7 +335,7 @@ struct TourMemberSourceView: View {
         isParsing = true
         Task {
             do {
-                let tables = try TourMemberParser.extractTables(from: resolveFileURL(doc))
+                let tables = try TourMemberParser.extractTables(from: doc.resolvedURL)
                 await MainActor.run {
                     rawTables = tables
                     isParsing = false
@@ -424,14 +424,6 @@ struct TourMemberSourceView: View {
 
     // MARK: - 輔助
 
-    /// 動態重組當前 sandbox 路徑，避免絕對路徑因重裝失效
-        private func resolveFileURL(_ doc: TourDocument) -> URL {
-            let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let resolved = docsDir
-                .appendingPathComponent(doc.teamID.uuidString)
-                .appendingPathComponent(doc.fileName)
-            return FileManager.default.fileExists(atPath: resolved.path) ? resolved : doc.fileURL
-        }
 
         private func extensionColor(_ ext: String) -> Color {
         switch ext.lowercased() {

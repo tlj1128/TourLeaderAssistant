@@ -169,10 +169,7 @@ struct TeamWorkspaceView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 HStack(spacing: 0) {
-                    infoItem(icon: "calendar", text: {
-                        let f = DateFormatter(); f.dateFormat = "MM/dd"
-                        return "\(f.string(from: team.departureDate)) – \(f.string(from: team.returnDate))"
-                    }())
+                    infoItem(icon: "calendar", text: "\(TeamWorkspaceView.tripDateFmt.string(from: team.departureDate)) – \(TeamWorkspaceView.tripDateFmt.string(from: team.returnDate))")
                     Spacer()
                     infoItem(icon: "moon.stars", text: "\(team.days) 天")
                     Spacer()
@@ -385,8 +382,15 @@ struct TeamWorkspaceView: View {
         }
     }
 
+    private static let tripDateFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "MM/dd"; return f
+    }()
+    private static let birthdayFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "M/d"; return f
+    }()
+
     private func birthdayString(_ date: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "M/d"; return f.string(from: date)
+        TeamWorkspaceView.birthdayFmt.string(from: date)
     }
 
     // MARK: - 功能卡片
@@ -405,9 +409,7 @@ struct TeamWorkspaceView: View {
                 NavigationLink { DocumentListView(team: team) } label: {
                     WorkspaceCard(title: "資料中心", systemImage: "folder.fill", color: Color(hex: "5B8CDB"))
                 }.buttonStyle(.plain)
-                NavigationLink { TourMemberListView(team: team) } label: {
-                    WorkspaceCard(title: "團員名單", systemImage: "person.2.fill", color: Color(hex: "A06CD5"))
-                }.buttonStyle(.plain)
+                WorkspaceCard(title: "團員名單", systemImage: "person.2.fill", color: Color(hex: "A06CD5"), isLocked: true, subtitle: "功能開發中")
             }
             outputCard
         }

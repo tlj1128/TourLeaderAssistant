@@ -50,7 +50,7 @@ struct DocumentListView: View {
                                 DocumentRowView(doc: doc)
                                     .contentShape(Rectangle())
                                     .listRowBackground(Color("AppCard"))
-                                    .onTapGesture { previewURL = doc.fileURL }
+                                    .onTapGesture { previewURL = doc.resolvedURL }
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
                                             deleteDocument(doc)
@@ -145,12 +145,12 @@ struct DocumentListView: View {
     }
 
     private func deleteDocument(_ doc: TourDocument) {
-        try? FileManager.default.removeItem(at: doc.fileURL)
+        try? FileManager.default.removeItem(at: doc.resolvedURL)
         modelContext.delete(doc)
     }
 
     private func shareDocument(_ doc: TourDocument) {
-        let av = UIActivityViewController(activityItems: [doc.fileURL], applicationActivities: nil)
+        let av = UIActivityViewController(activityItems: [doc.resolvedURL], applicationActivities: nil)
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let root = scene.windows.first?.rootViewController {
             root.present(av, animated: true)
@@ -164,11 +164,11 @@ struct DocumentRowView: View {
     let doc: TourDocument
 
     var fileExtension: String {
-        doc.fileURL.pathExtension.uppercased()
+        doc.resolvedURL.pathExtension.uppercased()
     }
 
     var extensionColor: Color {
-        switch doc.fileURL.pathExtension.lowercased() {
+        switch doc.resolvedURL.pathExtension.lowercased() {
         case "pdf": return Color(hex: "E8650A")
         case "doc", "docx": return Color(hex: "5B8CDB")
         case "xls", "xlsx": return Color(hex: "2DB8A8")

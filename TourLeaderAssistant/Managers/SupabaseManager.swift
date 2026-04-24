@@ -399,10 +399,11 @@ class SupabaseManager {
 
     private func searchRemoteHotels(query: String, context: ModelContext) async -> Int {
         do {
+            let q = sanitizeQuery(query)
             let remoteHotels: [RemoteHotel] = try await client
                 .from("places_hotel")
                 .select("*, cities(name_zh, name_en, countries(code))")
-                .or("name_en.ilike.%\(query)%,name_zh.ilike.%\(query)%")
+                .or("name_en.ilike.%\(q)%,name_zh.ilike.%\(q)%")
                 .execute()
                 .value
             return remoteHotels.reduce(0) { $0 + (mergeHotel($1, context: context) ? 1 : 0) }
@@ -414,10 +415,11 @@ class SupabaseManager {
 
     private func searchRemoteRestaurants(query: String, context: ModelContext) async -> Int {
         do {
+            let q = sanitizeQuery(query)
             let remoteRestaurants: [RemoteRestaurant] = try await client
                 .from("places_restaurant")
                 .select("*, cities(name_zh, name_en, countries(code))")
-                .or("name_en.ilike.%\(query)%,name_zh.ilike.%\(query)%")
+                .or("name_en.ilike.%\(q)%,name_zh.ilike.%\(q)%")
                 .execute()
                 .value
             return remoteRestaurants.reduce(0) { $0 + (mergeRestaurant($1, context: context) ? 1 : 0) }
@@ -429,10 +431,11 @@ class SupabaseManager {
 
     private func searchRemoteAttractions(query: String, context: ModelContext) async -> Int {
         do {
+            let q = sanitizeQuery(query)
             let remoteAttractions: [RemoteAttraction] = try await client
                 .from("places_attraction")
                 .select("*, cities(name_zh, name_en, countries(code))")
-                .or("name_en.ilike.%\(query)%,name_zh.ilike.%\(query)%")
+                .or("name_en.ilike.%\(q)%,name_zh.ilike.%\(q)%")
                 .execute()
                 .value
             return remoteAttractions.reduce(0) { $0 + (mergeAttraction($1, context: context) ? 1 : 0) }
@@ -562,7 +565,7 @@ class SupabaseManager {
 
     // MARK: - 輔助：找到或建立本機城市
 
-    private func findOrCreateCity(nameZH: String, nameEN: String, countryCode: String, remoteID: UUID, context: ModelContext) -> City? {
+    func findOrCreateCity(nameZH: String, nameEN: String, countryCode: String, remoteID: UUID, context: ModelContext) -> City? {
         let descriptor = FetchDescriptor<City>(predicate: #Predicate { $0.remoteID == remoteID })
         if let city = try? context.fetch(descriptor).first { return city }
 

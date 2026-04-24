@@ -186,6 +186,9 @@ struct TeamListView: View {
         let docDesc = FetchDescriptor<TourDocument>(predicate: #Predicate { $0.teamID == teamID })
         (try? modelContext.fetch(docDesc))?.forEach { modelContext.delete($0) }
 
+        let memberDesc = FetchDescriptor<TourMember>(predicate: #Predicate { $0.teamID == teamID })
+        (try? modelContext.fetch(memberDesc))?.forEach { modelContext.delete($0) }
+
         modelContext.delete(team)
     }
 

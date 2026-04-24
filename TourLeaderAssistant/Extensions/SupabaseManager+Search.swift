@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import Supabase
 
-private func sanitizeQuery(_ input: String) -> String {
+func sanitizeQuery(_ input: String) -> String {
     input
         .replacingOccurrences(of: "%", with: "\\%")
         .replacingOccurrences(of: "_", with: "\\_")
@@ -319,7 +319,7 @@ extension SupabaseManager {
 
             guard let remote = results.first else { return false }
 
-            let city = findOrCreateCityInExtension(
+            let city = findOrCreateCity(
                 nameZH: remote.cities.nameZH,
                 nameEN: remote.cities.nameEN,
                 countryCode: remote.cities.countries.code,
@@ -361,7 +361,7 @@ extension SupabaseManager {
 
             guard let remote = results.first else { return false }
 
-            let city = findOrCreateCityInExtension(
+            let city = findOrCreateCity(
                 nameZH: remote.cities.nameZH,
                 nameEN: remote.cities.nameEN,
                 countryCode: remote.cities.countries.code,
@@ -403,7 +403,7 @@ extension SupabaseManager {
 
             guard let remote = results.first else { return false }
 
-            let city = findOrCreateCityInExtension(
+            let city = findOrCreateCity(
                 nameZH: remote.cities.nameZH,
                 nameEN: remote.cities.nameEN,
                 countryCode: remote.cities.countries.code,
@@ -633,26 +633,6 @@ extension SupabaseManager {
         return RefreshResult(refreshed: refreshed, failed: failed)
     }
 
-    // MARK: - Extension 內部輔助方法
-
-    private func findOrCreateCityInExtension(nameZH: String, nameEN: String, countryCode: String, remoteID: UUID, context: ModelContext) -> City? {
-        let byRemoteID = FetchDescriptor<City>(predicate: #Predicate { $0.remoteID == remoteID })
-        if let city = try? context.fetch(byRemoteID).first { return city }
-
-        let byCode = FetchDescriptor<Country>(predicate: #Predicate { $0.code == countryCode })
-        guard let country = try? context.fetch(byCode).first else { return nil }
-
-        let byName = FetchDescriptor<City>(predicate: #Predicate { $0.nameEN == nameEN && $0.country?.code == countryCode })
-        if let city = try? context.fetch(byName).first {
-            city.remoteID = remoteID
-            return city
-        }
-
-        let newCity = City(nameZH: nameZH, nameEN: nameEN, country: country)
-        newCity.remoteID = remoteID
-        context.insert(newCity)
-        return newCity
-    }
 
     private func jsonStringFromAnyCodable(_ anyCodable: AnyCodable?) -> String {
         guard let anyCodable,

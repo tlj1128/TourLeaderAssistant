@@ -30,103 +30,105 @@ struct EditRestaurantView: View {
     }
 
     var body: some View {
-        Form {
-            Section("名稱") {
-                LabeledTextField(label: "英文名稱", placeholder: "Din Tai Fung", text: $nameEN)
-                    .autocorrectionDisabled()
-                LabeledTextField(label: "中文名稱", placeholder: "鼎泰豐", text: $nameZH)
-            }
-
-            Section("位置") {
-                Button {
-                    showingCountryPicker = true
-                } label: {
-                    HStack {
-                        Text("國家")
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if let country = selectedCountry {
-                            Text(country.nameZH)
-                                .foregroundStyle(.primary)
-                        } else {
-                            Text("未選擇")
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+        NavigationStack {
+            Form {
+                Section("名稱") {
+                    LabeledTextField(label: "英文名稱", placeholder: "Din Tai Fung", text: $nameEN)
+                        .autocorrectionDisabled()
+                    LabeledTextField(label: "中文名稱", placeholder: "鼎泰豐", text: $nameZH)
                 }
-
-                if selectedCountry != nil {
+                
+                Section("位置") {
                     Button {
-                        showingCityPicker = true
+                        showingCountryPicker = true
                     } label: {
                         HStack {
-                            Text("城市")
+                            Text("國家")
                                 .foregroundStyle(.primary)
                             Spacer()
-                            Text(selectedCity?.displayName ?? "未選擇")
-                                .foregroundStyle(selectedCity == nil ? .secondary : .primary)
+                            if let country = selectedCountry {
+                                Text(country.nameZH)
+                                    .foregroundStyle(.primary)
+                            } else {
+                                Text("未選擇")
+                                    .foregroundStyle(.secondary)
+                            }
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                }
-
-                LabeledTextField(label: "地址", placeholder: "No. 194, Xinyi Rd, Taipei", text: $address)
-            }
-
-            Section("聯絡") {
-                LabeledTextField(
-                    label: phoneLabel,
-                    placeholder: "不含國碼，例：02-8101-7799",
-                    text: $phone
-                )
-                .keyboardType(.phonePad)
-            }
-
-            Section("餐廳資訊") {
-                LabeledTextField(label: "菜系", placeholder: "台灣料理、日式", text: $cuisine)
-                LabeledTextField(label: "評價", placeholder: "CP值高，份量大", text: $rating)
-                LabeledTextField(label: "特色菜", placeholder: "小籠包、蛋炒飯", text: $specialty)
-            }
-
-            Section("注意事項") {
-                TextEditor(text: $notes)
-                    .frame(minHeight: 80)
-                    .overlay(alignment: .topLeading) {
-                        if notes.isEmpty {
-                            Text("不能訂位")
-                                .foregroundStyle(.tertiary)
-                                .padding(.top, 8)
-                                .padding(.leading, 4)
-                                .allowsHitTesting(false)
+                    
+                    if selectedCountry != nil {
+                        Button {
+                            showingCityPicker = true
+                        } label: {
+                            HStack {
+                                Text("城市")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Text(selectedCity?.displayName ?? "未選擇")
+                                    .foregroundStyle(selectedCity == nil ? .secondary : .primary)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
+                    
+                    LabeledTextField(label: "地址", placeholder: "No. 194, Xinyi Rd, Taipei", text: $address)
+                }
+                
+                Section("聯絡") {
+                    LabeledTextField(
+                        label: phoneLabel,
+                        placeholder: "不含國碼，例：02-8101-7799",
+                        text: $phone
+                    )
+                    .keyboardType(.phonePad)
+                }
+                
+                Section("餐廳資訊") {
+                    LabeledTextField(label: "菜系", placeholder: "台灣料理、日式", text: $cuisine)
+                    LabeledTextField(label: "評價", placeholder: "CP值高，份量大", text: $rating)
+                    LabeledTextField(label: "特色菜", placeholder: "小籠包、蛋炒飯", text: $specialty)
+                }
+                
+                Section("注意事項") {
+                    TextEditor(text: $notes)
+                        .frame(minHeight: 80)
+                        .overlay(alignment: .topLeading) {
+                            if notes.isEmpty {
+                                Text("不能訂位")
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.top, 8)
+                                    .padding(.leading, 4)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                }
             }
-        }
-        .navigationTitle("編輯餐廳")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("儲存") { save() }
-                    .disabled(nameEN.trimmingCharacters(in: .whitespaces).isEmpty)
+            .navigationTitle("編輯餐廳")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("儲存") { save() }
+                        .disabled(nameEN.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
-        }
-        .onAppear { loadData() }
-        .onChange(of: selectedCountry) {
-            if !isLoading { selectedCity = nil }
-        }
-        .sheet(isPresented: $showingCountryPicker) {
-            CountryPickerView(selectedCountry: $selectedCountry)
-                .appDynamicTypeSize(textSizePreference)
-        }
-        .sheet(isPresented: $showingCityPicker) {
-            if let country = selectedCountry {
-                CityPickerView(country: country, selectedCity: $selectedCity)
+            .onAppear { loadData() }
+            .onChange(of: selectedCountry) {
+                if !isLoading { selectedCity = nil }
+            }
+            .sheet(isPresented: $showingCountryPicker) {
+                CountryPickerView(selectedCountry: $selectedCountry)
                     .appDynamicTypeSize(textSizePreference)
+            }
+            .sheet(isPresented: $showingCityPicker) {
+                if let country = selectedCountry {
+                    CityPickerView(country: country, selectedCity: $selectedCity)
+                        .appDynamicTypeSize(textSizePreference)
+                }
             }
         }
     }

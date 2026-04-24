@@ -397,18 +397,18 @@ struct TourMemberMapper {
         return nil
     }
 
-    static func parseDate(_ s: String?) -> Date? {
-        guard let s = s, !s.isEmpty else { return nil }
-        let formats = ["yyyy/MM/dd", "yyyy-MM-dd", "dd/MM/yyyy",
-                       "MM/dd/yyyy", "yyyyMMdd", "dd.MM.yyyy"]
-        for fmt in formats {
+    private static let dateParsers: [DateFormatter] = {
+        ["yyyy/MM/dd", "yyyy-MM-dd", "dd/MM/yyyy", "MM/dd/yyyy", "yyyyMMdd", "dd.MM.yyyy"].map { fmt in
             let f = DateFormatter()
             f.dateFormat = fmt
             f.locale = Locale(identifier: "en_US_POSIX")
-            if let date = f.date(from: s.trimmingCharacters(in: .whitespaces)) {
-                return date
-            }
+            return f
         }
-        return nil
+    }()
+
+    static func parseDate(_ s: String?) -> Date? {
+        guard let s = s, !s.isEmpty else { return nil }
+        let trimmed = s.trimmingCharacters(in: .whitespaces)
+        return dateParsers.lazy.compactMap { $0.date(from: trimmed) }.first
     }
 }

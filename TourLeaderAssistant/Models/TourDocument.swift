@@ -10,6 +10,12 @@ class TourDocument {
     var fileURL: URL
     var createdAt: Date
 
+    /// 由 teamID + fileName 動態重組正確的 sandbox 路徑，避免 fileURL 絕對路徑重裝後失效
+    var resolvedURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return docs.appendingPathComponent(teamID.uuidString).appendingPathComponent(fileName)
+    }
+
     init(
         teamID: UUID,
         category: DocumentCategory,

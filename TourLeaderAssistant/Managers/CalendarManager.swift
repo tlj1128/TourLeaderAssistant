@@ -51,7 +51,11 @@ class CalendarManager {
     func removeEvent(for team: Team) {
         guard let eventID = team.calendarEventID,
               let event = store.event(withIdentifier: eventID) else { return }
-        try? store.remove(event, span: .thisEvent)
-        team.calendarEventID = nil
+        do {
+            try store.remove(event, span: .thisEvent)
+            team.calendarEventID = nil
+        } catch {
+            print("CalendarManager：行事曆刪除失敗，保留 eventID 以便重試：\(error)")
+        }
     }
 }
