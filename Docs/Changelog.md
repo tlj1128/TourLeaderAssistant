@@ -5,7 +5,7 @@
 
 ---
 
-## Build 14 — 2026/04/27
+## Build 14 — 2026/04/27–28
 
 ### 新增功能
 
@@ -60,6 +60,31 @@
 - `SettingsView` 底部加入【開發者工具】Section
 - `DebugDataGenerator`：產生完整測試資料（4個團、15名團員、支出/收入/日誌/地點）
 - 測試資料以 `[TEST]` 前綴標記，清除時只移除標記資料
+
+### 內部調整（2026/04/28）
+
+**檔案結構整理**
+- 拼字修正：`JournalDetailVIew` → `View`、`HotelSuporting` → `Supporting`
+- 新增 `Views/Member/`，收 6 個 `TourMember*` 檔（自 `Views/Team/`）
+- 新增 `Utilities/`、`Utilities/Debug/`，收 `SeedData`、`DebugDataGenerator`
+- 新增 repo 根 `Docs/`，收 `Changelog` / 規格文件 / 開發進度紀錄（去掉版本與日期後綴）
+- `PrivacyInfo.xcprivacy` 從 `Managers/` 搬到專案根
+- `SupabaseManager+Photos` / `+Search` 從 `Extensions/` 搬到 `Managers/`（與 `SupabaseManager.swift` 並列）
+- pbxproj `membershipExceptions` 移除已搬走的 markdown 條目
+
+**Debug build 強制啟用 feature flag**
+- `isMemberListEnabled` / `isLocalAIEnabled` / `isCurrencyPickerEnabled` 在 `#if DEBUG` 下直接回傳 true，方便本機測試開發中功能
+- Release build 仍由 Supabase `app_config` 控制
+
+**DebugDataGenerator 修復**
+- `generate` / `clear` 用 `context.transaction` 包整批變動，修復 SwiftUI `@Query` 看到中間狀態而 fatal 在 `Team.status.getter` 的 crash
+- 移除無作用的 `Task.detached + MainActor.run` wrapping
+- 飯店與餐廳電話前綴依實際城市對應（Tokyo +81-3、Osaka +81-6、Seoul +82-2）
+- `testMemberCount` 常數化，`paxCount` / `roomCount` / member prefix 數量同步，避免顯示「20 人」但實際 15 員的不一致
+- `groupLabel` 索引加 cap，避免改動 prefix 數量時 array out of bounds
+
+**死碼清除**
+- 移除完全未被使用的 `CurrencyPicker.CurrencyInfo` struct（原本宣告後改用 tuple 但忘了刪）
 
 ---
 
