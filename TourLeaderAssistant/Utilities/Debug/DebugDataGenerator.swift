@@ -8,6 +8,7 @@ import SwiftData
 struct DebugDataGenerator {
 
     static let testPrefix = "[TEST]"
+    private static let testMemberCount = 15
 
     // MARK: - 隨機國家池（選幾個常見帶團目的地）
 
@@ -44,82 +45,77 @@ struct DebugDataGenerator {
     // MARK: - 產生所有測試資料
 
     static func generate(context: ModelContext) async {
-        await Task.detached(priority: .userInitiated) {
-            await MainActor.run {
-                generatePlaces(context: context)
-                generateHistoricalTeams(context: context)
-                generateCurrentTeam(context: context)
-                try? context.save()
+        await MainActor.run {
+            do {
+                try context.transaction {
+                    generatePlaces(context: context)
+                    generateHistoricalTeams(context: context)
+                    generateCurrentTeam(context: context)
+                }
+            } catch {
+                print("[DebugDataGenerator] generate error: \(error)")
             }
-        }.value
+        }
     }
 
     // MARK: - 清除所有測試資料
 
     static func clear(context: ModelContext) async {
-        await Task.detached(priority: .userInitiated) {
-            await MainActor.run {
-                let teamDescriptor = FetchDescriptor<Team>()
-                if let teams = try? context.fetch(teamDescriptor) {
+        await MainActor.run {
+            do {
+                try context.transaction {
+                    let teams = (try? context.fetch(FetchDescriptor<Team>())) ?? []
                     let testTeams = teams.filter { $0.name.hasPrefix(testPrefix) }
                     let testTeamIDs = Set(testTeams.map { $0.id })
 
-                    let expenseDescriptor = FetchDescriptor<Expense>()
-                    if let expenses = try? context.fetch(expenseDescriptor) {
+                    if let expenses = try? context.fetch(FetchDescriptor<Expense>()) {
                         expenses.filter { testTeamIDs.contains($0.teamID) }.forEach { context.delete($0) }
                     }
-                    let incomeDescriptor = FetchDescriptor<Income>()
-                    if let incomes = try? context.fetch(incomeDescriptor) {
+                    if let incomes = try? context.fetch(FetchDescriptor<Income>()) {
                         incomes.filter { testTeamIDs.contains($0.teamID) }.forEach { context.delete($0) }
                     }
-                    let journalDescriptor = FetchDescriptor<Journal>()
-                    if let journals = try? context.fetch(journalDescriptor) {
+                    if let journals = try? context.fetch(FetchDescriptor<Journal>()) {
                         journals.filter { testTeamIDs.contains($0.teamID) }.forEach { context.delete($0) }
                     }
-                    let fundDescriptor = FetchDescriptor<TourFund>()
-                    if let funds = try? context.fetch(fundDescriptor) {
+                    if let funds = try? context.fetch(FetchDescriptor<TourFund>()) {
                         funds.filter { testTeamIDs.contains($0.teamID) }.forEach { context.delete($0) }
                     }
-                    let memberDescriptor = FetchDescriptor<TourMember>()
-                    if let members = try? context.fetch(memberDescriptor) {
+                    if let members = try? context.fetch(FetchDescriptor<TourMember>()) {
                         members.filter { testTeamIDs.contains($0.teamID) }.forEach { context.delete($0) }
                     }
                     testTeams.forEach { context.delete($0) }
-                }
 
-                let hotelDescriptor = FetchDescriptor<PlaceHotel>()
-                if let hotels = try? context.fetch(hotelDescriptor) {
-                    hotels.filter { $0.nameEN.hasPrefix(testPrefix) }.forEach { context.delete($0) }
+                    if let hotels = try? context.fetch(FetchDescriptor<PlaceHotel>()) {
+                        hotels.filter { $0.nameEN.hasPrefix(testPrefix) }.forEach { context.delete($0) }
+                    }
+                    if let restaurants = try? context.fetch(FetchDescriptor<PlaceRestaurant>()) {
+                        restaurants.filter { $0.nameEN.hasPrefix(testPrefix) }.forEach { context.delete($0) }
+                    }
+                    if let attractions = try? context.fetch(FetchDescriptor<PlaceAttraction>()) {
+                        attractions.filter { $0.nameEN.hasPrefix(testPrefix) }.forEach { context.delete($0) }
+                    }
                 }
-                let restaurantDescriptor = FetchDescriptor<PlaceRestaurant>()
-                if let restaurants = try? context.fetch(restaurantDescriptor) {
-                    restaurants.filter { $0.nameEN.hasPrefix(testPrefix) }.forEach { context.delete($0) }
-                }
-                let attractionDescriptor = FetchDescriptor<PlaceAttraction>()
-                if let attractions = try? context.fetch(attractionDescriptor) {
-                    attractions.filter { $0.nameEN.hasPrefix(testPrefix) }.forEach { context.delete($0) }
-                }
-
-                try? context.save()
+            } catch {
+                print("[DebugDataGenerator] clear error: \(error)")
             }
-        }.value
+        }
     }
 
     // MARK: - 地點資料
 
     private static func generatePlaces(context: ModelContext) {
         // 飯店
-        let hotelData: [(en: String, zh: String, city: String)] = [
-            ("[TEST] Grand Hyatt Tokyo", "東京君悅大酒店", "Tokyo"),
-            ("[TEST] The Ritz-Carlton Osaka", "大阪麗思卡爾頓酒店", "Osaka"),
-            ("[TEST] Park Hyatt Seoul", "首爾柏悅酒店", "Seoul"),
+        let hotelData: [(en: String, zh: String, city: String, phonePrefix: String)] = [
+            ("[TEST] Grand Hyatt Tokyo", "東京君悅大酒店", "Tokyo", "+81-3"),
+            ("[TEST] The Ritz-Carlton Osaka", "大阪麗思卡爾頓酒店", "Osaka", "+81-6"),
+            ("[TEST] Park Hyatt Seoul", "首爾柏悅酒店", "Seoul", "+82-2"),
         ]
 
         for data in hotelData {
             let hotel = PlaceHotel(nameEN: data.en)
             hotel.nameZH = data.zh
             hotel.address = "123 \(data.city) Main Street"
-            hotel.phone = "+81-3-\(Int.random(in: 1000...9999))-\(Int.random(in: 1000...9999))"
+            hotel.phone = "\(data.phonePrefix)-\(Int.random(in: 1000...9999))-\(Int.random(in: 1000...9999))"
 
             var fah = FloorsAndHours()
             fah.lobbyFloor = "1F"
@@ -168,10 +164,10 @@ struct DebugDataGenerator {
         }
 
         // 餐廳
-        let restaurantData: [(en: String, zh: String, cuisine: String, specialty: String, notes: String)] = [
-            ("[TEST] Sukiyabashi Jiro Honten", "數寄屋橋次郎本店", "日本料理", "主廚精選壽司", "需提前數月預約，午餐約30道，晚餐約20道"),
-            ("[TEST] Din Tai Fung Shinjuku", "鼎泰豐新宿店", "台灣料理", "小籠包、蝦仁炒飯", "午餐等位約30分鐘，建議早到取號"),
-            ("[TEST] Namdaemun Gukbap", "南大門國飯", "韓國料理", "牛骨湯飯", "24小時營業，價格實惠，觀光客必訪"),
+        let restaurantData: [(en: String, zh: String, cuisine: String, specialty: String, notes: String, phonePrefix: String)] = [
+            ("[TEST] Sukiyabashi Jiro Honten", "數寄屋橋次郎本店", "日本料理", "主廚精選壽司", "需提前數月預約，午餐約30道，晚餐約20道", "+81-3"),
+            ("[TEST] Din Tai Fung Shinjuku", "鼎泰豐新宿店", "台灣料理", "小籠包、蝦仁炒飯", "午餐等位約30分鐘，建議早到取號", "+81-3"),
+            ("[TEST] Namdaemun Gukbap", "南大門國飯", "韓國料理", "牛骨湯飯", "24小時營業，價格實惠，觀光客必訪", "+82-2"),
         ]
 
         for data in restaurantData {
@@ -181,7 +177,7 @@ struct DebugDataGenerator {
             r.specialty = data.specialty
             r.notes = data.notes
             r.rating = ["★★★★★", "★★★★☆", "★★★☆☆"].randomElement()!
-            r.phone = "+82-2-\(Int.random(in: 100...999))-\(Int.random(in: 1000...9999))"
+            r.phone = "\(data.phonePrefix)-\(Int.random(in: 100...999))-\(Int.random(in: 1000...9999))"
             r.needsSync = false
             context.insert(r)
         }
@@ -228,8 +224,8 @@ struct DebugDataGenerator {
 
             let team = Team(tourCode: code, name: name, departureDate: departure, days: config.days)
             team.countryCodes = countries.map { $0.code }
-            team.paxCount = Int.random(in: 18...35)
-            team.roomCount = "\(Int.random(in: 8...16))"
+            team.paxCount = testMemberCount
+            team.roomCount = "\((testMemberCount + 1) / 2)"
             context.insert(team)
 
             generateFunds(for: team, mainCurrency: mainCurrency, context: context)
@@ -253,8 +249,8 @@ struct DebugDataGenerator {
 
         let team = Team(tourCode: "TEST2026A", name: name, departureDate: departure, days: 12)
         team.countryCodes = countries.map { $0.code }
-        team.paxCount = 20
-        team.roomCount = "10"
+        team.paxCount = testMemberCount
+        team.roomCount = "\((testMemberCount + 1) / 2)"
         team.notes = "這是測試用的進行中團體。"
         context.insert(team)
 
@@ -440,7 +436,8 @@ struct DebugDataGenerator {
 
     private static func generateMembers(for team: Team, context: ModelContext) {
         let cal = Calendar.current
-        let shuffled = memberPool.shuffled().prefix(15)
+        let shuffled = memberPool.shuffled().prefix(testMemberCount)
+        let groupChars = ["A", "B", "C", "D", "E"]
 
         for (i, member) in shuffled.enumerated() {
             // 生日：25–65 歲之間隨機，月份和日期也隨機
@@ -456,7 +453,7 @@ struct DebugDataGenerator {
             let passportExpiry = cal.date(byAdding: DateComponents(year: expiryYears, month: expiryMonths, day: expiryDays), to: Date())
             let passportNum = "3\(Int.random(in: 10000000...99999999))"
             let roomLabel = String(format: "%02d", (i / 2) + 1)
-            let groupLabel = ["A", "B", "C"][i / 5]
+            let groupLabel = groupChars[min(i / 5, groupChars.count - 1)]
 
             let dietaryOptions = [
                 "不吃牛肉",

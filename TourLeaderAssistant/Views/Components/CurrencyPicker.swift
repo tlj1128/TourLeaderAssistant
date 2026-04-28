@@ -3,11 +3,6 @@ import SwiftData
 
 // MARK: - 幣種資料
 
-struct CurrencyInfo {
-    let code: String
-    let regionZH: String
-}
-
 // 從 SeedData 整理出來的幣種清單，按地區分組
 // 去重後保留第一個出現的地區
 struct CurrencyData {

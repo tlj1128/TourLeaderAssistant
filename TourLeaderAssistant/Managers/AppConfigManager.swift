@@ -36,25 +36,38 @@ class AppConfigManager {
     }
 
     // MARK: - 對外屬性（Feature Flags）
+    // Debug build 一律放行所有 feature flag，方便開發測試
     var isMemberListEnabled: Bool {
+        #if DEBUG
+        return true
+        #else
         guard UserDefaults.standard.object(forKey: keyFeatureMemberList) != nil else {
             return fallbackFeatureMemberList
         }
         return UserDefaults.standard.bool(forKey: keyFeatureMemberList)
+        #endif
     }
 
     var isLocalAIEnabled: Bool {
+        #if DEBUG
+        return true
+        #else
         guard UserDefaults.standard.object(forKey: keyFeatureLocalAI) != nil else {
             return fallbackFeatureLocalAI
         }
         return UserDefaults.standard.bool(forKey: keyFeatureLocalAI)
+        #endif
     }
 
     var isCurrencyPickerEnabled: Bool {
+        #if DEBUG
+        return true
+        #else
         guard UserDefaults.standard.object(forKey: keyFeatureCurrencyPicker) != nil else {
             return fallbackFeatureCurrencyPicker
         }
         return UserDefaults.standard.bool(forKey: keyFeatureCurrencyPicker)
+        #endif
     }
 
     private init() {}
