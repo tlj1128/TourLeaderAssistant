@@ -14,6 +14,11 @@ struct SettingsView: View {
     @Query private var allPhotos: [PlacePhoto]
 
     @State private var showClearCacheAlert = false
+    #if DEBUG
+    @State private var isGeneratingDebugData = false
+    @State private var debugDoneMessage = ""
+    @State private var showDebugDoneAlert = false
+    #endif
     @State private var showUnsyncedWarning = false
     @State private var showFeedback = false
     @State private var unsyncedCount = 0
@@ -94,34 +99,9 @@ struct SettingsView: View {
                 }
 
                 // MARK: - Apple Intelligence
-                if false {
-                Section {
-                    if isAppleIntelligenceSupported {
-                        Toggle(isOn: $useLocalAI) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Apple Intelligence 輔助")
-                                Text("啟用後將使用裝置內建 Apple Intelligence 進行語意輔助分析")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    } else {
-                        HStack(spacing: 12) {
-                            Image(systemName: "apple.intelligence")
-                                .foregroundStyle(Color(.systemGray3))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Apple Intelligence 輔助")
-                                    .foregroundStyle(Color(.systemGray))
-                                Text("需要 iPhone 15 Pro 以上裝置並已開啟 Apple Intelligence")
-                                    .font(.caption)
-                                    .foregroundStyle(Color(.systemGray3))
-                            }
-                        }
-                    }
-                } header: {
-                    Text("智慧功能")
+                if AppConfigManager.shared.isLocalAIEnabled {
+                    localAISection
                 }
-                } // if false
 
                 Section("地點庫快取") {
                     LabeledContent("照片快取大小") {
@@ -185,6 +165,10 @@ struct SettingsView: View {
                             Image(systemName: "envelope")
                         }
                     }
+
+                    NavigationLink(destination: MyFeedbackView()) {
+                        Label("我的回饋", systemImage: "clock.arrow.circlepath")
+                    }
                 }
 
                 Section("說明") {
@@ -204,6 +188,49 @@ struct SettingsView: View {
                     LabeledContent("版本", value: appVersion)
                     LabeledContent("Build", value: buildNumber)
                 }
+
+                #if DEBUG
+                Section {
+                    Button {
+                        guard !isGeneratingDebugData else { return }
+                        isGeneratingDebugData = true
+                        Task {
+                            await DebugDataGenerator.generate(context: modelContext)
+                            debugDoneMessage = "測試資料已產生完成。"
+                            showDebugDoneAlert = true
+                            isGeneratingDebugData = false
+                        }
+                    } label: {
+                        HStack {
+                            Label("產生測試資料", systemImage: "wand.and.stars")
+                                .foregroundStyle(isGeneratingDebugData ? Color.secondary : Color.blue)
+                            if isGeneratingDebugData {
+                                Spacer()
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(isGeneratingDebugData)
+
+                    Button(role: .destructive) {
+                        guard !isGeneratingDebugData else { return }
+                        isGeneratingDebugData = true
+                        Task {
+                            await DebugDataGenerator.clear(context: modelContext)
+                            debugDoneMessage = "測試資料已清除完成。"
+                            showDebugDoneAlert = true
+                            isGeneratingDebugData = false
+                        }
+                    } label: {
+                        Label("清除測試資料", systemImage: "trash")
+                    }
+                    .disabled(isGeneratingDebugData)
+                } header: {
+                    Text("開發者工具")
+                } footer: {
+                    Text("僅在 Debug 模式下顯示。產生的資料以 [TEST] 標記，清除時只移除標記資料。")
+                }
+                #endif
             }
             .navigationTitle("設定")
             .alert("確定清除地點快取？", isPresented: $showClearCacheAlert) {
@@ -222,10 +249,54 @@ struct SettingsView: View {
             } message: {
                 Text("有 \(unsyncedCount) 個地點有未同步的修改，清除後將遺失。確定繼續？")
             }
+            #if DEBUG
+            .alert("完成", isPresented: $showDebugDoneAlert) {
+                Button("好") {}
+            } message: {
+                Text(debugDoneMessage)
+            }
+            #endif
             .sheet(isPresented: $showFeedback) {
                 FeedbackView()
                     .appDynamicTypeSize(textSizePreference)
             }
+        }
+    }
+
+    // MARK: - Apple Intelligence Section
+
+    @ViewBuilder
+    private var localAISection: some View {
+        Section {
+            if isAppleIntelligenceSupported {
+                Toggle(isOn: $useLocalAI) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Apple Intelligence 輔助")
+                        Text("啟用後將使用裝置內建 Apple Intelligence 進行語意輔助分析")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: useLocalAI) { _, _ in
+                    let defaults = UserDefaults.standard
+                    let keys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("dietary_") }
+                    keys.forEach { defaults.removeObject(forKey: $0) }
+                }
+            } else {
+                HStack(spacing: 12) {
+                    Image(systemName: "apple.intelligence")
+                        .foregroundStyle(Color(.systemGray3))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Apple Intelligence 輔助")
+                            .foregroundStyle(Color(.systemGray))
+                        Text("需要 iPhone 15 Pro 以上裝置並已開啟 Apple Intelligence")
+                            .font(.caption)
+                            .foregroundStyle(Color(.systemGray3))
+                    }
+                }
+            }
+        } header: {
+            Text("智慧功能")
         }
     }
 

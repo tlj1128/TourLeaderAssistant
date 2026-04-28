@@ -7,9 +7,9 @@ struct AddIncomeView: View {
     let team: Team
 
     @Query private var allCountries: [Country]
+    @Query private var allIncomes: [Income]
     @Query(sort: \CustomIncomeType.sortOrder) private var customIncomeTypes: [CustomIncomeType]
 
-    // 預設 + 自訂 + 其他
     var allTypeNames: [String] {
         DefaultIncomeType.all.map(\.name)
         + customIncomeTypes.map(\.name)
@@ -21,9 +21,11 @@ struct AddIncomeView: View {
     @State private var amount = ""
     @State private var currency = "TWD"
     @State private var notes = ""
+    @State private var showingCurrencyPicker = false
 
     var suggestedCurrencies: [String] {
         var result: [String] = []
+        if !currency.isEmpty { result.append(currency) }
         for code in team.countryCodes {
             if let country = allCountries.first(where: { $0.code == code }),
                !country.currencyCode.isEmpty,
@@ -31,10 +33,18 @@ struct AddIncomeView: View {
                 result.append(country.currencyCode)
             }
         }
+        let teamID = team.id
+        let recent = allIncomes
+            .filter { $0.teamID == teamID }
+            .sorted { $0.date > $1.date }
+            .map { $0.currency }
+        for code in recent {
+            if !result.contains(code) { result.append(code) }
+        }
         for common in ["TWD", "USD", "EUR", "JPY", "GBP"] {
             if !result.contains(common) { result.append(common) }
         }
-        return result
+        return Array(result.prefix(8))
     }
 
     var isFormValid: Bool {
@@ -59,14 +69,7 @@ struct AddIncomeView: View {
                     HStack(spacing: 8) {
                         LabeledTextField(label: "金額", placeholder: "5000", text: $amount)
                             .keyboardType(.decimalPad)
-                        Picker("", selection: $currency) {
-                            ForEach(suggestedCurrencies, id: \.self) { code in
-                                Text(code).tag(code)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .tint(Color("AppAccent"))
+                        currencyButton
                     }
                     if let hint = ExchangeRateManager.shared.incomeRateHint(currency: currency) {
                         Text(hint)
@@ -99,6 +102,53 @@ struct AddIncomeView: View {
                     currency = first
                 }
             }
+            .sheet(isPresented: $showingCurrencyPicker) {
+                CurrencyPicker(selectedCurrency: $currency, team: team)
+            }
+        }
+    }
+
+    // MARK: - 幣種按鈕
+
+    @ViewBuilder
+    private var currencyButton: some View {
+        if AppConfigManager.shared.isCurrencyPickerEnabled {
+            Menu {
+                ForEach(suggestedCurrencies, id: \.self) { code in
+                    Button {
+                        currency = code
+                    } label: {
+                        if code == currency {
+                            Label(code, systemImage: "checkmark")
+                        } else {
+                            Text(code)
+                        }
+                    }
+                }
+                Divider()
+                Button {
+                    showingCurrencyPicker = true
+                } label: {
+                    Label("更多幣種…", systemImage: "magnifyingglass")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(currency)
+                        .fontWeight(.medium)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption)
+                }
+                .foregroundStyle(Color("AppAccent"))
+            }
+        } else {
+            Picker("", selection: $currency) {
+                ForEach(suggestedCurrencies, id: \.self) { code in
+                    Text(code).tag(code)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .tint(Color("AppAccent"))
         }
     }
 

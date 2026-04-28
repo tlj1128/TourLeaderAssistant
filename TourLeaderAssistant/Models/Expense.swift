@@ -20,8 +20,8 @@ class Expense {
     var exchangeRate: Decimal
     var convertedAmount: Decimal
     var receiptNumber: String?
-    var receiptImagePath: String?
-    var paymentMethod: String?   // PaymentMethod.rawValue，選填
+    var receiptImagePathsData: String  // JSON 陣列，例如 ["uuid1.jpg","uuid2.jpg"]
+    var paymentMethod: String?
     var notes: String?
     var createdAt: Date
 
@@ -43,6 +43,24 @@ class Expense {
         self.currency = currency
         self.exchangeRate = exchangeRate
         self.convertedAmount = exchangeRate == 0 ? 0 : (amount * quantity) / exchangeRate
+        self.receiptImagePathsData = "[]"
         self.createdAt = Date()
+    }
+
+    // MARK: - Computed Property
+
+    var receiptImagePaths: [String] {
+        get {
+            guard let data = receiptImagePathsData.data(using: .utf8),
+                  let paths = try? JSONDecoder().decode([String].self, from: data)
+            else { return [] }
+            return paths
+        }
+        set {
+            guard let data = try? JSONEncoder().encode(newValue),
+                  let string = String(data: data, encoding: .utf8)
+            else { return }
+            receiptImagePathsData = string
+        }
     }
 }

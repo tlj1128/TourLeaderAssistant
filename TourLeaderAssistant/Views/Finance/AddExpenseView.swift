@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct AddExpenseView: View {
     @Environment(\.modelContext) private var modelContext
@@ -19,7 +20,12 @@ struct AddExpenseView: View {
     @State private var receiptNumber = ""
     @State private var paymentMethod: PaymentMethod? = nil
     @State private var notes = ""
-    
+    @State private var showingCurrencyPicker = false
+    @State private var receiptImages: [UIImage] = []
+    @State private var pickerItems: [PhotosPickerItem] = []
+    @State private var showingCamera = false
+    @AppStorage("savePhotoToAlbum") private var savePhotoToAlbum = true
+
     let baseCurrency: String
 
     init(team: Team, lastExpense: Expense? = nil, baseCurrency: String = "USD") {
@@ -34,6 +40,9 @@ struct AddExpenseView: View {
 
     var suggestedCurrencies: [String] {
         var result: [String] = []
+        if !currency.isEmpty && !result.contains(currency) {
+            result.append(currency)
+        }
         for code in team.countryCodes {
             if let country = allCountries.first(where: { $0.code == code }),
                !country.currencyCode.isEmpty,
@@ -81,14 +90,7 @@ struct AddExpenseView: View {
                             .onChange(of: amount) { _, newValue in
                                 amount = newValue.filter { $0.isNumber || $0 == "." }
                             }
-                        Picker("", selection: $currency) {
-                            ForEach(suggestedCurrencies, id: \.self) { code in
-                                Text(code).tag(code)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .tint(Color("AppAccent"))
+                        currencyButton
                     }
 
                     LabeledTextField(label: "數量", placeholder: "1", text: $quantity, keyboardType: .decimalPad)
@@ -133,6 +135,50 @@ struct AddExpenseView: View {
                             Text(method.rawValue).tag(Optional(method))
                         }
                     }
+
+                    // 收據照片
+                    if !receiptImages.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(receiptImages.indices, id: \.self) { index in
+                                    Image(uiImage: receiptImages[index])
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 80, height: 80)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+
+                    HStack(spacing: 12) {
+                        PhotosPicker(selection: $pickerItems, matching: .images) {
+                            Label("從相簿選取", systemImage: "photo")
+                                .font(.subheadline)
+                        }
+                        .onChange(of: pickerItems) { _, newItems in
+                            Task {
+                                for item in newItems {
+                                    if let data = try? await item.loadTransferable(type: Data.self),
+                                       let image = UIImage(data: data) {
+                                        receiptImages.append(image)
+                                    }
+                                }
+                                pickerItems = []
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Divider().frame(height: 20)
+
+                        Label("拍照", systemImage: "camera")
+                            .font(.subheadline)
+                            .foregroundStyle(Color("AppAccent"))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .contentShape(Rectangle())
+                            .onTapGesture { showingCamera = true }
+                    }
                 }
 
                 Section("備註") {
@@ -153,6 +199,61 @@ struct AddExpenseView: View {
                 }
             }
             .onAppear { loadDefaults() }
+            .sheet(isPresented: $showingCurrencyPicker) {
+                CurrencyPicker(selectedCurrency: $currency, team: team)
+            }
+            .sheet(isPresented: $showingCamera) {
+                CameraView { image in
+                    receiptImages.append(image)
+                    if savePhotoToAlbum {
+                        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - 幣種按鈕
+
+    @ViewBuilder
+    private var currencyButton: some View {
+        if AppConfigManager.shared.isCurrencyPickerEnabled {
+            Menu {
+                ForEach(suggestedCurrencies, id: \.self) { code in
+                    Button {
+                        currency = code
+                    } label: {
+                        if code == currency {
+                            Label(code, systemImage: "checkmark")
+                        } else {
+                            Text(code)
+                        }
+                    }
+                }
+                Divider()
+                Button {
+                    showingCurrencyPicker = true
+                } label: {
+                    Label("更多幣種…", systemImage: "magnifyingglass")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(currency)
+                        .fontWeight(.medium)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption)
+                }
+                .foregroundStyle(Color("AppAccent"))
+            }
+        } else {
+            Picker("", selection: $currency) {
+                ForEach(suggestedCurrencies, id: \.self) { code in
+                    Text(code).tag(code)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .tint(Color("AppAccent"))
         }
     }
 
@@ -184,6 +285,15 @@ struct AddExpenseView: View {
         expense.receiptNumber = receiptNumber.isEmpty ? nil : receiptNumber
         expense.paymentMethod = paymentMethod?.rawValue
         expense.notes = notes.isEmpty ? nil : notes
+
+        // 儲存收據照片
+        var paths: [String] = []
+        for image in receiptImages {
+            if let fileName = ReceiptPhotoManager.shared.save(image: image) {
+                paths.append(fileName)
+            }
+        }
+        expense.receiptImagePaths = paths
 
         modelContext.insert(expense)
         dismiss()

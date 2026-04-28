@@ -6,14 +6,15 @@ struct EditIncomeView: View {
     let income: Income
 
     @Query(sort: \CustomIncomeType.sortOrder) private var customIncomeTypes: [CustomIncomeType]
+    @Query private var allIncomes: [Income]
+    @Query private var allTeams: [Team]
 
     @State private var date: Date
     @State private var selectedTypeName: String
     @State private var amount: String
     @State private var currency: String
     @State private var notes: String
-
-    let commonCurrencies = ["TWD", "USD", "EUR", "JPY", "GBP", "HKD", "AUD", "SGD", "KRW", "THB"]
+    @State private var showingCurrencyPicker = false
 
     init(income: Income) {
         self.income = income
@@ -24,17 +25,31 @@ struct EditIncomeView: View {
         _notes = State(initialValue: income.notes ?? "")
     }
 
-    // 預設 + 自訂 + 其他
+    var team: Team? {
+        allTeams.first { $0.id == income.teamID }
+    }
+
     var allTypeNames: [String] {
         DefaultIncomeType.all.map(\.name)
         + customIncomeTypes.map(\.name)
         + [DefaultIncomeType.otherName]
     }
 
-    var currencyOptions: [String] {
-        var result = commonCurrencies
-        if !result.contains(currency) { result.insert(currency, at: 0) }
-        return result
+    var suggestedCurrencies: [String] {
+        var result: [String] = []
+        if !currency.isEmpty { result.append(currency) }
+        let teamID = income.teamID
+        let recent = allIncomes
+            .filter { $0.teamID == teamID }
+            .sorted { $0.date > $1.date }
+            .map { $0.currency }
+        for code in recent {
+            if !result.contains(code) { result.append(code) }
+        }
+        for common in ["TWD", "USD", "EUR", "JPY", "GBP"] {
+            if !result.contains(common) { result.append(common) }
+        }
+        return Array(result.prefix(8))
     }
 
     var isFormValid: Bool {
@@ -59,14 +74,7 @@ struct EditIncomeView: View {
                     HStack(spacing: 8) {
                         LabeledTextField(label: "金額", placeholder: "5000", text: $amount)
                             .keyboardType(.decimalPad)
-                        Picker("", selection: $currency) {
-                            ForEach(currencyOptions, id: \.self) { code in
-                                Text(code).tag(code)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .tint(Color("AppAccent"))
+                        currencyButton
                     }
                     if let hint = ExchangeRateManager.shared.incomeRateHint(currency: currency) {
                         Text(hint)
@@ -94,6 +102,55 @@ struct EditIncomeView: View {
                         .fontWeight(.semibold)
                 }
             }
+            .sheet(isPresented: $showingCurrencyPicker) {
+                if let t = team {
+                    CurrencyPicker(selectedCurrency: $currency, team: t)
+                }
+            }
+        }
+    }
+
+    // MARK: - 幣種按鈕
+
+    @ViewBuilder
+    private var currencyButton: some View {
+        if AppConfigManager.shared.isCurrencyPickerEnabled {
+            Menu {
+                ForEach(suggestedCurrencies, id: \.self) { code in
+                    Button {
+                        currency = code
+                    } label: {
+                        if code == currency {
+                            Label(code, systemImage: "checkmark")
+                        } else {
+                            Text(code)
+                        }
+                    }
+                }
+                Divider()
+                Button {
+                    showingCurrencyPicker = true
+                } label: {
+                    Label("更多幣種…", systemImage: "magnifyingglass")
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(currency)
+                        .fontWeight(.medium)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption)
+                }
+                .foregroundStyle(Color("AppAccent"))
+            }
+        } else {
+            Picker("", selection: $currency) {
+                ForEach(suggestedCurrencies, id: \.self) { code in
+                    Text(code).tag(code)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .tint(Color("AppAccent"))
         }
     }
 

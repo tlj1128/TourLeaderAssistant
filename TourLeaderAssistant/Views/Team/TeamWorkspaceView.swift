@@ -21,11 +21,16 @@ struct TeamWorkspaceView: View {
     @State private var alertCardExpanded = true
     @State private var dietaryInfoList: [MemberDietaryInfo] = []
     @State private var isDietaryLoading = false
+    
+    private func dietaryCacheKey(memberID: UUID) -> String {
+        "dietary_\(team.id)_\(memberID)"
+    }
 
     @Query private var funds: [TourFund]
     @Query private var allExpenses: [Expense]
     @Query private var allMembers: [TourMember]
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
+    @AppStorage("useLocalAI") private var useLocalAI = false
 
     var teamFunds: [TourFund] { funds.filter { $0.teamID == team.id } }
 
@@ -137,8 +142,22 @@ struct TeamWorkspaceView: View {
         var result: [MemberDietaryInfo] = []
         for member in teamMembers {
             guard let remark = member.remark, !remark.isEmpty else { continue }
+
+            // 先查 UserDefaults 快取
+            let cacheKey = dietaryCacheKey(memberID: member.id)
+            if let data = UserDefaults.standard.data(forKey: cacheKey),
+               let cached = try? JSONDecoder().decode([DietaryNeed].self, from: data),
+               !cached.isEmpty {
+                result.append(MemberDietaryInfo(member: member, needs: cached))
+                continue
+            }
+
+            // 無快取才解析，解析完存入快取
             let needs = await DietaryParser.parse(remark: remark)
             if !needs.isEmpty {
+                if let data = try? JSONEncoder().encode(needs) {
+                    UserDefaults.standard.set(data, forKey: cacheKey)
+                }
                 result.append(MemberDietaryInfo(member: member, needs: needs))
             }
         }
@@ -236,6 +255,14 @@ struct TeamWorkspaceView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "bell.fill").font(.caption).foregroundStyle(Color(hex: "E8650A"))
                     Text("團員提醒事項").font(.subheadline).fontWeight(.semibold).foregroundStyle(.primary)
+                    if AppConfigManager.shared.isLocalAIEnabled && useLocalAI {
+                        Text("AI")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.7), in: RoundedRectangle(cornerRadius: 3))
+                    }
                     Spacer()
                     if isDietaryLoading {
                         ProgressView().scaleEffect(0.7)
@@ -365,9 +392,31 @@ struct TeamWorkspaceView: View {
                 }
             }
             .frame(minWidth: 52, alignment: .leading)
-            Text(entry.labels.joined(separator: "、"))
-                .font(.subheadline).foregroundStyle(Color(.systemGray))
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                // 取得對應 member 的 needs
+                let memberNeeds = dietaryInfoList.first { $0.member.id == entry.member.id }?.needs ?? []
+                let ruleLabels = memberNeeds.filter { !$0.isAIGenerated }.map { $0.label }
+                let aiLabels = memberNeeds.filter { $0.isAIGenerated }.map { $0.label }
+
+                if !ruleLabels.isEmpty {
+                    Text(ruleLabels.joined(separator: "、"))
+                        .font(.subheadline).foregroundStyle(Color(.systemGray))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if !aiLabels.isEmpty {
+                    HStack(spacing: 4) {
+                        Text("AI")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.purple.opacity(0.7), in: RoundedRectangle(cornerRadius: 3))
+                        Text(aiLabels.joined(separator: "、"))
+                            .font(.subheadline).foregroundStyle(Color(.systemGray).opacity(0.8))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
         }
     }
 
@@ -409,7 +458,11 @@ struct TeamWorkspaceView: View {
                 NavigationLink { DocumentListView(team: team) } label: {
                     WorkspaceCard(title: "資料中心", systemImage: "folder.fill", color: Color(hex: "5B8CDB"))
                 }.buttonStyle(.plain)
-                WorkspaceCard(title: "團員名單", systemImage: "person.2.fill", color: Color(hex: "A06CD5"), isLocked: true, subtitle: "功能開發中")
+                NavigationLink { TourMemberListView(team: team) } label: {
+                        WorkspaceCard(title: "團員名單", systemImage: "person.2.fill", color: Color(hex: "A06CD5"), isLocked: !AppConfigManager.shared.isMemberListEnabled, subtitle: AppConfigManager.shared.isMemberListEnabled ? nil : "功能開發中")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!AppConfigManager.shared.isMemberListEnabled)
             }
             outputCard
         }

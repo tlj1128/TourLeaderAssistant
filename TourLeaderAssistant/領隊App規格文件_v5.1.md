@@ -1,0 +1,506 @@
+# 外語領隊工作 App 規格文件
+
+> 版本：v5.1
+> 更新日期：2026/04/25
+> 平台：iOS 18+（原生，Swift + SwiftUI）
+> 後端：Supabase（地點雲端資料庫）
+> 離線優先：所有當團資料完整存於本機，有網路時才同步雲端
+
+---
+
+## 一、技術選型
+
+| 項目 | 選擇 |
+|------|------|
+| 開發語言 | Swift + SwiftUI |
+| 本機資料庫 | SwiftData |
+| 雲端資料庫 | Supabase（地點資料庫 + 照片儲存） |
+| 照片儲存 | 本機：App Documents/PlacePhotos/；雲端：Supabase Storage |
+| 行事曆整合 | Apple 行事曆（EventKit，可選） |
+| 備份還原 | iCloud（ubiquity container） |
+| 團員名單解析 | 自寫 ZIP 解壓 + XMLParser（xlsx/docx）；Vision OCR（zh-Hant + zh-Hans + en-US，圖片） |
+| 飲食需求解析 | Rule-based 為主；Apple Foundation Models 輔助（iOS 26+ / iPhone 15 Pro 以上，選用，目前未開放） |
+| Android 支援 | 非第一優先，未來再評估 |
+
+---
+
+## 二、導航結構
+
+主要 Tab 五個：
+
+| Tab | 說明 |
+|-----|------|
+| 團體 | 進行中／準備中的團體列表 |
+| 紀錄 | 已結團列表 |
+| 統計 | 年度帶團統計 |
+| 地點庫 | 飯店／餐廳／景點雲端資料庫 |
+| 設定 | 一般偏好設定 |
+
+---
+
+## 三、團體管理
+
+### 狀態
+- **準備中**（出發前）
+- **進行中**（出發後）
+- **待結團**（回國日隔天）
+- **已結團**
+- 出發日當天自動切換「準備中」→「進行中」
+- 回國日隔天自動切換「進行中」→「待結團」
+- 結團由使用者手動觸發，已結團可取消結團回到「待結團」
+
+### 團體列表
+- 依狀態分區塊顯示：進行中 → 待結團 → 準備中
+- 已結團移至「紀錄」Tab
+- 進行中的團用綠色強調
+- 每張卡顯示：團名、團號、出發日期、天數、人數、狀態
+
+### 新增團體（必填欄位）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| name | String | 團名／目的地 |
+| departureDate | Date | 出發日期 |
+| days | Int | 天數（自動計算回國日） |
+
+### 新增團體（選填欄位）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| tourCode | String? | 團號 |
+| paxCount | Int | 團體人數 |
+| roomCount | String | 房間數 |
+| notes | String? | 備註 |
+| countryCodes | [String] | 目的地國家（多選） |
+
+### 行事曆連動
+- 寫入 Apple 行事曆為**可選項**，新增團體時顯示開關，預設不加入
+- 可選目標行事曆，顯示彩色圓點
+- 寫入內容：出發日、回國日（全天事件）、標題（團名）
+- 刪除失敗時保留 calendarEventID 不清空（do-catch 保護）
+
+---
+
+## 四、團體工作空間
+
+進入團體後頂部顯示團體基本資訊與零用金餘額，下方功能卡片網格：
+
+| 卡片 | 說明 |
+|------|------|
+| 帳務紀錄 | 支出／收入／零用金管理 |
+| 每日日誌 | 帶團日誌紀錄 |
+| 資料中心 | 行程表、名單等文件管理 |
+| 團員名單 | 團員資料、分房分組（目前未開放） |
+| 輸出文件 | 全寬顯示，結團前鎖定 |
+
+輸出文件依狀態顯示：準備中／進行中→鎖定、待結團→結團按鈕、已結團→取消結團＋匯出按鈕。
+
+工作空間下方顯示【團員提醒事項】：行程中生日提醒、飲食需求分組（機上／行程中），摺疊／展開。
+
+---
+
+## 五、本機資料庫結構（SwiftData）
+
+### Team（團體）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| tourCode | String? | 團號（選填） |
+| name | String | 團名／目的地 |
+| departureDate | Date | 出發日期 |
+| days | Int | 天數 |
+| returnDate | Date | 自動計算（出發日＋天數） |
+| paxCount | Int? | 團體人數 |
+| roomCount | String? | 房間數 |
+| status | Enum | preparing / inProgress / pendingClose / finished |
+| countryCodesData | String | 目的地國家 ISO code JSON 陣列 |
+| calendarEventID | String? | Apple 行事曆事件 ID |
+| notes | String? | 備註 |
+| createdAt | Date | |
+
+### TourMember（團員）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| teamID | UUID | 所屬團體 |
+| nameEN | String | 英文姓名 |
+| nameZH | String | 中文姓名 |
+| gender | String | 性別 |
+| birthday | Date? | 生日 |
+| passportNumber | String | 護照號碼 |
+| passportExpiry | Date? | 護照到期日 |
+| roomLabel | String | 房號（格式：01/02/03…） |
+| groupLabel | String | 分組代號（格式：A/B/C…） |
+| remark | String | 備註（含飲食需求原始文字） |
+| sortOrder | Int | 排序序號 |
+| createdAt | Date | |
+
+### TourDocument（文件）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| teamID | UUID | 所屬團體 |
+| category | Enum | itineraryCN / itineraryEN / mealPlan / guestList / roomingList / ticket / visa / other |
+| fileName | String | 原始檔名 |
+| fileURL | URL | 儲存時的絕對路徑 |
+| createdAt | Date | |
+
+> `resolvedURL` computed property：以 teamID + fileName 動態重組當前沙盒路徑，解決 App 更新後路徑失效問題。所有路徑存取統一使用 `resolvedURL`，不寫 migration。
+
+### TourFund（團體資金）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| teamID | UUID | 所屬團體 |
+| typeName | String | 類型名稱（純文字，預設類型由 DefaultFundType 定義） |
+| currency | String | 幣種（JPY、EUR 等） |
+| initialAmount | Decimal | 總金額 |
+| isReimbursable | Bool | 是否列入報帳，預設 true |
+| notes | String? | 備註 |
+
+零用金限制：同一團體只能有一筆「零用金」類型資金。
+
+### Expense（帳務支出）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| teamID | UUID | 所屬團體 |
+| date | Date | 消費日期（預設今天） |
+| location | String? | 地點描述 |
+| item | String | 花費項目 |
+| quantity | Decimal | 數量 |
+| amount | Decimal | 金額 |
+| currency | String | 幣種 |
+| exchangeRate | Decimal | 對應零用金比值（手動填入） |
+| convertedAmount | Decimal | 換算後金額（自動計算，除以零保護） |
+| paymentMethod | String? | 支付方式（選填） |
+| receiptNumber | String? | 收據編號（無收據填 x 或留空） |
+| receiptImagePath | String? | 收據照片路徑 |
+| notes | String? | 備註 |
+| createdAt | Date | |
+
+換算公式：金額 × 數量 ÷ 比值（exchangeRate == 0 時結果為 0）
+
+### Income（收入紀錄）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| teamID | UUID | 所屬團體 |
+| date | Date | 日期 |
+| typeName | String | 類型名稱 |
+| amount | Decimal | 金額 |
+| currency | String | 幣種（不換算，依幣種分組） |
+| notes | String? | 備註 |
+
+### Journal（日誌）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| teamID | UUID | 所屬團體 |
+| date | Date | 日誌日期（預設今天） |
+| content | String | 內容（支援前綴標記） |
+| createdAt | Date | |
+| updatedAt | Date | |
+
+---
+
+## 六、雲端資料庫結構（Supabase）
+
+### countries / cities
+
+標準化國家城市資料，App 啟動時同步下載。共 188 個國家、258 個預設城市（is_preset = true 的城市不可刪除）。
+
+### places_hotel（飯店）
+
+名稱以英文為主要識別（必填），中文選填，顯示時英文為主標題，中文為副標題。
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| nameEN | String | 英文名稱（必填） |
+| nameENNormalized | String | 小寫去空格，用於 upsert 唯一比對 |
+| nameZH | String? | 中文名稱 |
+| cityID | UUID | 關聯 cities |
+| address | String? | 地址 |
+| phone | String? | 電話 |
+| floorsAndHours | JSONB | 樓層與用餐時間（含游泳池／健身房開放時間） |
+| wifi | JSONB | Wi-Fi 資訊 |
+| phoneDialing | JSONB | 撥號方式（含房間→房間） |
+| amenitiesAndFacilities | JSONB | 房間備品與飯店設施 |
+| surroundingsAndNotes | String? | 周邊資訊與備註 |
+| createdBy | String | Keychain UUID（裝置識別） |
+| updatedAt | Date | 自動更新 |
+
+### places_restaurant（餐廳）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| nameEN | String | 英文名稱（必填） |
+| nameENNormalized | String | 小寫去空格，用於 upsert 唯一比對 |
+| nameZH | String? | 中文名稱 |
+| nameLocal | String? | 當地語言名稱 |
+| cityID | UUID | 關聯 cities |
+| address | String? | 地址 |
+| phone | String? | 電話 |
+| cuisine | String? | 菜系 |
+| rating | String? | 評價 |
+| specialty | String? | 特色菜 |
+| notes | String? | 備註 |
+| createdBy | String | Keychain UUID（裝置識別） |
+| updatedAt | Date | 自動更新 |
+
+### places_attraction（景點）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| nameEN | String | 英文名稱（必填） |
+| nameENNormalized | String | 小寫去空格，用於 upsert 唯一比對 |
+| nameZH | String? | 中文名稱 |
+| nameLocal | String? | 當地語言名稱 |
+| cityID | UUID | 關聯 cities |
+| address | String? | 地址 |
+| phone | String? | 電話 |
+| ticketPrice | String? | 票價 |
+| openingHours | String? | 開放時間 |
+| photographyRules | String? | 攝影規定 |
+| allowedItems | String? | 可攜帶物品 |
+| notes | String? | 備註 |
+| createdBy | String | Keychain UUID（裝置識別） |
+| updatedAt | Date | 自動更新 |
+
+### place_photos
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| place_id | UUID | 關聯地點（刪除時雙重條件：place_id + file_name） |
+| place_type | String | hotel / restaurant / attraction |
+| storage_path | String | Supabase Storage 路徑（placeType/remoteID/fileName.jpg） |
+| file_name | String | 檔名 |
+| sort_order | Int | 排序 |
+| created_by | String | Keychain UUID（裝置識別） |
+
+Storage bucket：place-photos（Public），Policy 允許 anon INSERT/DELETE。
+
+### app_config
+
+key-value 設定表，App 啟動靜默抓取，UserDefaults 快取，hardcode fallback。
+
+| key | 說明 |
+|-----|------|
+| user_guide_url | 使用說明連結（Craft） |
+| linktree_url | 消業障旅行團 Linktree |
+
+### feedback
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | 主鍵 |
+| device_id | String | Keychain UUID |
+| category | String | 回饋類型 |
+| title | String | 標題 |
+| content | String | 詳細說明 |
+| app_version | String | App 版本 |
+| created_at | Date | |
+
+---
+
+## 七、地點資料同步邏輯
+
+### 搜尋架構
+
+**本機即時搜尋**：打字即時顯示，結果標記【本地】或【已存】。
+
+**雲端預覽搜尋**：debounce 1.5 秒後觸發，只抓摘要欄位（id、名稱、城市），不存入本機，結果標記【下載】。
+
+**點【下載】才存入本機**：觸發單筆完整資料下載，下載完成後標記變【已存】。
+
+### 標記說明
+
+| 標記 | 說明 |
+|------|------|
+| 【本地】灰色 | 只在本機，尚未上傳雲端 |
+| 【已存】綠色 | 本機＋雲端已同步 |
+| 【下載】橘色 | 只在雲端，點擊下載存入本機 |
+
+### 同步邏輯
+
+- 唯一識別：nameENNormalized + cityID
+- 上傳：手動按同步按鈕觸發（needsSync = true 的資料）
+- needsSync = true 本機優先（不被雲端覆蓋）；needsSync = false 且雲端 updatedAt 較新才覆蓋本機
+- 城市同步：進入地點庫頁面自動靜默觸發
+- 照片同步：diff 策略，只異動差異部分；needsUpload = true 待上傳；needsDelete = true 標記待從雲端刪除
+- 行動數據上傳：alert 顯示預估上傳大小，不強制擋住
+
+---
+
+## 八、帳務紀錄邏輯
+
+- 列表依日期分組，顯示當天小計
+- 頂部顯示零用金餘額（初始金額 - 已支出換算金額）與已支出總計
+- 換算金額 = 金額 × 數量 ÷ 比值，系統自動計算並顯示算式
+- 台幣支出（TWD）輸出時自動歸入台幣區塊
+- 新增時自動帶入前一筆的日期、地點、幣種、匯率
+- 匯率欄位下方顯示參考匯率提示（Frankfurter API，TWD 為 base，每日快取）
+
+---
+
+## 九、日誌邏輯
+
+- 列表依天數排列，顯示第幾天與日期
+- 第幾天由系統根據出發日期自動計算
+- 支援前綴標記（重要事項紅色、意見反應藍色等）
+- 可匯出或複製分享，不上傳雲端
+
+---
+
+## 十、設定
+
+- 外觀（深色／淺色）、字體大小
+- 個人資料（顯示名稱、真實姓名、旅行社、電話、LINE ID、Facebook、Instagram）
+- 自訂資料管理（資金類型、收入類型）
+- 地點庫快取管理
+- iCloud 備份還原
+- 支持開發者（IAP）
+- 意見回饋
+- 使用說明連結（從 app_config 抓取）
+- 智慧功能開關（useLocalAI，iOS 26+ / iPhone 15 Pro 以上，目前未開放）
+
+---
+
+## 十一、團員名單解析邏輯
+
+### 文件匯入流程
+
+| 來源 | 流程 |
+|------|------|
+| xlsx / docx | TourMemberSourceView → TourMemberRawPreviewView（欄位對應）→ TourMemberPreviewView（確認）→ 寫入 |
+| 圖片 / 截圖 | TourMemberSourceView → TourMemberOCRMappingView（Vision OCR）→ TourMemberPreviewView → 寫入 |
+| PDF | 不支援直接解析，顯示提示引導截圖後走圖片流程 |
+
+### 欄位對應
+- autoDetect 自動偵測表頭
+- 支援：英文姓名、中文姓名（可合併欄分割）、性別、生日、護照號碼、護照到期日、房號、分組、備註
+- 房號：有指定欄位時空白繼承前一筆；未指定時預設兩兩一間（01/01/02/02…）
+
+### 飲食需求解析
+從 remark 欄位原始文字解析，rule-based 為主：
+1. 提取「機上」段（截到已知代碼或「餐」字），歸 airlineMeal 大類
+2. 剩餘文字解析行程中需求：過敏 → 素食 → 不吃特定食物，其餘捨棄
+3. 去重：同 label + 同 scope 才去重；機上與行程中各自保留
+
+Apple Foundation Models 輔助（iOS 26+ / iPhone 15 Pro 以上，useLocalAI 開啟時）：rule-based 跑完後 AI 補充漏判，timeout 5 秒。
+
+---
+
+## 十二、輸出文件（結團後）
+
+| 文件 | 格式 | 內容 |
+|------|------|------|
+| 帶團報告書 | txt | 彙整每日日誌，前綴標記自動解析排序 |
+| 報帳單 | PDF + CSV | 帳務明細，動態欄位選擇排序 |
+
+報帳單欄位：日期、地點、項目、數量、原始金額、幣種、比值、換算金額、收據編號、備註
+
+---
+
+## 十三、其他功能
+
+### iCloud 備份還原
+- 備份內容：Team、Expense、Income、TourFund、Journal、CustomType、City、本機地點、地點照片、個人基本資料
+- 備份格式：JSON，Decimal 序列化為 String
+- 自動保留最近 5 個版本
+- NSFileCoordinator 確保多裝置同步安全
+- iCloud Container ID：iCloud.com.TLJStudio.TLABackup
+
+### In-App Purchase（支持開發者）
+- StoreKit 2 消耗性 IAP
+- 三個選項：NT$190 / NT$290 / NT$390
+- 購買成功顯示感謝 Alert
+
+### 意見回饋
+- 內建表單，Picker 選類型 + 標題 + 詳細說明
+- 送出寫入 Supabase feedback 表；device_id 用 Keychain UUID
+
+### 隱私權
+- PrivacyInfo.xcprivacy：UserDefaults（CA92.1）、File Timestamp（C617.1）、Disk Space（E174.1）
+- 隱私權政策 URL：https://gist.github.com/tlj1128/236b1dde32fac10749e9f2d2ad54d999
+
+---
+
+## 十四、整體儲存架構
+
+```
+本機（iPhone）
+├── 所有團體資料（完整離線可用）
+├── 行程表、名單、餐表等上傳文件
+├── 收據照片（App 相簿）
+├── 地點照片（App Documents/PlacePhotos/，長邊 1080px 壓縮）
+├── 帳務紀錄
+└── 每日日誌
+
+雲端（Supabase）
+├── countries / cities（國家城市標準化）
+├── 地點資料庫（飯店、餐廳、景點，純文字）
+│   ↑ 搜尋時抓預覽，點下載才完整存入本機
+│   ↑ 有網路時同步上傳，離線時讀本機快取
+├── 地點照片（Supabase Storage，place-photos bucket）
+│   ↑ 手動同步上傳，diff 策略只異動差異部分
+├── app_config（遠端設定，App 啟動靜默抓取）
+└── feedback（意見回饋）
+
+備份（iCloud）
+└── iCloud ubiquity container（iCloud.com.TLJStudio.TLABackup）
+    ↑ 含所有團體資料、地點、照片、個人資料，保留最近 5 個版本
+```
+
+---
+
+## 十五、已知技術決策
+
+| 決策 | 說明 | 理由 |
+|------|------|------|
+| SwiftData 不使用 `@Relationship` 管理 Team 子模型 | TourMember、Expense 等以 `teamID: UUID` 關聯，手動清理 | 避免 SwiftData cascade delete 的 bug 風險 |
+| JSONB 欄位以 JSON String 儲存 | `floorsAndHoursData: String` 搭配 computed property decode/encode | SwiftData 不支援複雜巢狀結構直接存儲 |
+| `TourDocument.resolvedURL` | 保留 `fileURL` 欄位，新增 computed property 動態重組路徑，不寫 migration | iOS 沙盒路徑在 App 更新後 UUID 段會改變 |
+| Edit 地點頁面保留 NavigationStack | EditHotelView / EditRestaurantView / EditAttractionView 外層需有 NavigationStack | 移除後 toolbar 儲存按鈕消失 |
+| 地點新增架構用 NavigationLink 推入 | 非 sheet 呈現 | 切換 App 時 sheet 的 @State 會被重置 |
+| 唯一識別：nameENNormalized + cityID | 小寫去空格後比對 | 用於 upsert onConflict |
+| needsSync 語意 | 使用者明確要求同步才標記，不在每次編輯時自動設 | 避免無謂上傳 |
+| Keychain UUID 作為裝置識別 | KeychainManager | 比 identifierForVendor 更穩定，App 重裝後不變 |
+| xcconfig 分離敏感設定 | Supabase URL / anon key 不進 git | `.gitignore` 已加入 `*.xcconfig` |
+| xcconfig URL 格式 | `https://` 必須寫成 `https:/$()/` | `//` 被視為註解導致 URL 空字串 |
+| SwiftData + iCloud | ModelConfiguration 需明確設定 `cloudKitDatabase: .none` | iCloud entitlement 存在但不用 CloudKit 時 Release build 會 crash |
+| 匯率 API | Frankfurter v2，免費無需 API key，TWD 為 base，每日快取一次 | 支援約 30 種主要幣種 |
+| 網路偵測 | NetworkMonitor singleton（NWPathMonitor） | 上傳前在行動數據下於 alert 顯示預估大小，不強制擋住 |
+| 備份格式 | JSON，Decimal 序列化為 String；iCloud ubiquity container 根目錄 Backups/ | 放根目錄避免出現在「檔案」App |
+| TourMemberParser 自寫 ZIP + XML | 不依賴第三方套件處理 xlsx/docx | 減少外部依賴，包體積更小 |
+| 團員名單 / 智慧功能暫時隱藏 | 功能開發中，尚未開放給使用者 | — |
+| 登入系統（Phase 6）不綁定 RLS | Phase 6 先建登入，RLS 為 Phase 7 | RLS 開啟是破壞性變更，會中斷現有 TestFlight 測試 |
+| 領隊驗證採人工審核 | 觀光署查詢系統無 API、有驗證碼 | 用戶圈子小，手工審核可行 |
+
+---
+
+## 十六、開發階段
+
+| 階段 | 內容 | 狀態 |
+|------|------|------|
+| Phase 1 | 團體管理、行事曆連動、SwiftData 基礎建立 | ✅ 完成 |
+| Phase 2 | 資料中心、資金紀錄設定、帳務記帳 | ✅ 完成 |
+| Phase 3 | 每日日誌、報帳單匯出 | ✅ 完成 |
+| Phase 4 | 地點資料庫、Supabase 雲端同步、搜尋 UX | ✅ 完成 |
+| Phase 5 | 照片雲端同步、iCloud 備份、IAP | ✅ 完成 |
+| Phase 6 | 登入系統（Apple / Google）、權限分層、App Store 上架 | 🔲 進行中 |
+| Phase 7 | Supabase RLS、地點歷史版本紀錄、貢獻度基礎建設 | 🔲 規劃中 |
+| Phase 8 | 奧客黑名單、廁所資料（景點欄位擴充）、貢獻度排行榜 | 🔲 規劃中 |
+| Phase 9 | 航班查詢（貢獻度門檻）、緊急資訊功能 | 🔲 規劃中 |
+| Phase 10 | Landing Page、App 內功能說明 | 🔲 規劃中 |

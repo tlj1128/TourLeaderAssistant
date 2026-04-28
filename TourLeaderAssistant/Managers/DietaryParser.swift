@@ -2,20 +2,21 @@ import Foundation
 
 // MARK: - 資料結構
 
-enum DietaryScope {
-    case airborne   // 機上限定
-    case tripWide   // 行程中
+enum DietaryScope: Codable {
+    case airborne
+    case tripWide
 }
 
-struct DietaryNeed: Identifiable {
+struct DietaryNeed: Identifiable, Codable {
     let id = UUID()
     let category: DietaryCategory
     let label: String
     let scope: DietaryScope
     let sortKey: Int
+    var isAIGenerated: Bool = false
 }
 
-enum DietaryCategory: String, CaseIterable {
+enum DietaryCategory: String, CaseIterable, Codable {
     case allergy     = "過敏"
     case vegetarian  = "素食"
     case avoidFood   = "不吃特定食物"
@@ -326,6 +327,24 @@ struct DietaryParser {
             needs.append(DietaryNeed(category: .avoidFood, label: "不吃生食",
                                      scope: .tripWide, sortKey: 11))
         }
+        
+        // ── 不吃辣 ──
+        if lower.contains("不吃辣") || lower.contains("不辣") || lower.contains("怕辣") || lower.contains("避辣") {
+            needs.append(DietaryNeed(category: .avoidFood, label: "不吃辣",
+                                     scope: .tripWide, sortKey: 12))
+        }
+
+        // ── 糖尿病飲食 ──
+        if lower.contains("糖尿病") || lower.contains("低糖") || lower.contains("控糖") {
+            needs.append(DietaryNeed(category: .avoidFood, label: "糖尿病飲食",
+                                     scope: .tripWide, sortKey: 13))
+        }
+        
+        // ── 低鈉飲食 ──
+        if lower.contains("低鈉") || lower.contains("少鹽") || lower.contains("不吃鹽") || lower.contains("限鈉") {
+            needs.append(DietaryNeed(category: .avoidFood, label: "低鈉飲食",
+                                     scope: .tripWide, sortKey: 14))
+        }
 
         return needs
     }
@@ -457,16 +476,16 @@ struct DietaryParser {
     private static func supplementWithAI(remark: String, existing: [DietaryNeed]) async throws -> [DietaryNeed] {
         let existingLabels = existing.map { $0.label }.joined(separator: "、")
         let instructions = """
-        你是旅遊領隊助理，專門解析團員飲食需求備註。
-        已有初步解析結果，請補充漏掉的需求或修正錯誤分類。
+        你是旅遊領隊助理，負責補充飲食需求解析。
 
-        category 只能填：過敏 / 素食 / 不吃特定食物 / 機上特殊餐
-        label：簡短中文描述
-        isAirborne：備註明確標示「機上」且為機上需求則 true，否則 false
+        rule-based 系統已能識別：過敏（花生、海鮮、堅果、麩質、乳糖、蛋）、素食類型、不吃特定肉類、機上特殊餐代碼（MOML/VGML等）、不吃辣、糖尿病飲食、低鈉飲食。
+
+        你的任務：只補充原文中 rule-based 無法識別的需求，例如特殊醫療飲食、不常見的食物限制、自由描述的特殊需求。
 
         規則：
-        - 只補充漏掉的項目，不重複已有的
-        - 自由文字語意判斷（例如「因矯正關係需軟食物」→ 需軟食）
+        - 如果原文的需求已全部被「已解析」涵蓋，回傳空陣列
+        - 不推論、不猜測，原文沒有明確說明的不補充
+        - 不重複已有的項目
         - 忽略電話號碼、姓名、日期等無關內容
         """
 
@@ -485,7 +504,7 @@ struct DietaryParser {
             let scope: DietaryScope = need.isAirborne ? .airborne : .tripWide
             let finalCategory: DietaryCategory = need.isAirborne ? .airlineMeal : category
             return DietaryNeed(category: finalCategory, label: need.label,
-                               scope: scope, sortKey: existing.count + idx)
+                               scope: scope, sortKey: existing.count + idx, isAIGenerated: true)
         }
 
         return existing + aiNeeds
