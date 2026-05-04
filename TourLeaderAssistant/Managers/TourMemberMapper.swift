@@ -3,17 +3,29 @@ import Foundation
 // MARK: - 欄位類型
 
 enum MemberFieldType: String, CaseIterable, Identifiable {
+    // 預設 / 略過
     case skip        = "skip"
+
+    // 姓名
     case nameEN      = "nameEN"
     case nameZH      = "nameZH"
     case nameENZH    = "nameENZH"    // 英文+中文合一
+
+    // 個資
     case gender      = "gender"
     case birthday    = "birthday"
+    case nationalID  = "nationalID"  // 台灣身分證；首位數字 1=M 2=F
+    case birthdayID  = "birthdayID"  // 生日+身分證合一
+
+    // 護照
     case passportNo  = "passportNo"
     case passportExpiry = "passportExpiry"
     case issueExpiry = "issueExpiry" // 發照日+效期合一
-    case birthdayID  = "birthdayID"  // 生日+身分證合一
+    case passportFull = "passportFull" // 號碼+發照+效期單欄多行
+
+    // 房 / 備註
     case roomLabel   = "roomLabel"
+    case remarkEssential = "remarkEssential"  // 只留機位/房/餐/需求等必要資訊
     case remark      = "remark"
 
     var id: String { rawValue }
@@ -28,10 +40,13 @@ enum MemberFieldType: String, CaseIterable, Identifiable {
         case .birthday:      return "生日"
         case .passportNo:    return "護照號碼"
         case .passportExpiry: return "護照效期"
+        case .passportFull:  return "護照（號碼+發照+效期）"
         case .issueExpiry:   return "發照日+效期（合一）"
         case .birthdayID:    return "生日+身分證（合一）"
         case .roomLabel:     return "房號"
-        case .remark:        return "備註"
+        case .nationalID:    return "身分證字號"
+        case .remark:        return "備註（所有）"
+        case .remarkEssential: return "備註（僅需求）"
         }
     }
 }
@@ -233,7 +248,15 @@ struct TourMemberMapper {
                 passportNumber = extractPassportNumber(value) ?? value
 
             case .passportExpiry:
-                passportExpiry = parseDate(value)
+                // 多行 cell 也支援：抓出最大的日期當效期
+                let dates = extractAllDates(from: value)
+                passportExpiry = dates.max() ?? parseDate(value)
+
+            case .passportFull:
+                // 號碼 + 發照日 + 效期 三合一單欄
+                passportNumber = extractPassportNumber(value)
+                let dates = extractAllDates(from: value)
+                if let maxD = dates.max() { passportExpiry = maxD }
 
             case .issueExpiry:
                 // 發照日+效期合一：取較晚的日期
@@ -247,8 +270,28 @@ struct TourMemberMapper {
                 let digitsOnly = value.filter { $0.isNumber }
                 if !digitsOnly.isEmpty { roomLabel = digitsOnly }
 
+            case .nationalID:
+                // 台灣身分證 [A-Z]\d{9}，首位數字 1=M、2=F
+                // 只在沒有顯式性別欄時補；不覆蓋既有 gender
+                if gender == nil {
+                    let trimmed = value.trimmingCharacters(in: .whitespaces)
+                    if trimmed.count >= 2 {
+                        let secondChar = trimmed[trimmed.index(trimmed.startIndex, offsetBy: 1)]
+                        if secondChar == "1" { gender = "M" }
+                        else if secondChar == "2" { gender = "F" }
+                    }
+                }
+
             case .remark:
                 remarkParts.append(value)
+
+            case .remarkEssential:
+                let lines = value.split(separator: "\n", omittingEmptySubsequences: true)
+                    .map { String($0).trimmingCharacters(in: .whitespaces) }
+                let kept = lines.filter { isEssentialRemarkLine($0) }
+                if !kept.isEmpty {
+                    remarkParts.append(kept.joined(separator: " "))
+                }
             }
         }
 
@@ -378,6 +421,25 @@ struct TourMemberMapper {
               let match = regex.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
               let range = Range(match.range, in: s) else { return nil }
         return String(s[range])
+    }
+
+    /// 判斷一行備註是否為「必要資訊」（機位 / 房 / 餐 / 飲食需求等）
+    /// 用來支援 .remarkEssential，把地址、電話這類沒實用的內容濾掉
+    static func isEssentialRemarkLine(_ line: String) -> Bool {
+        let l = line.lowercased()
+        let keywords = [
+            // 機位
+            "機位", "靠窗", "走道", "鄰座", "前排", "後排", "選位",
+            // 房型
+            "房", "同房", "不同房", "床", "single", "double", "twin",
+            // 餐 / 飲食
+            "餐", "食", "不吃", "素", "葷", "過敏", "忌口", "忌",
+            "vegetarian", "vegan", "kosher", "halal",
+            // 其他需求
+            "需求", "特殊", "輪椅", "嬰兒", "兒童餐", "兒童",
+            "升等", "蜜月", "慶生", "wheelchair"
+        ]
+        return keywords.contains { l.contains($0) }
     }
 
     static func cleanChineseName(_ s: String) -> String? {

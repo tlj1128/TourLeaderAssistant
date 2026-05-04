@@ -26,18 +26,28 @@ struct RawTable {
     }
 }
 
+// MARK: - StructuredOCRTable（iOS 26 RecognizeDocumentsRequest 結果）
+// 1 Vision row = 1 RawTable row，cell 內保留 \n。
+// 由 mapper 用 field type 自行決定如何吃多行 cell（.passportFull / .nameENZH / .remark…）。
+
+struct StructuredOCRTable {
+    let table: RawTable
+}
+
 // MARK: - ParserError
 
 enum ParserError: LocalizedError {
     case unsupportedFormat
     case fileReadFailed
     case noDataFound
+    case requiresIOS26
 
     var errorDescription: String? {
         switch self {
-        case .unsupportedFormat: return "不支援的檔案格式（支援 xlsx、docx、pdf）"
+        case .unsupportedFormat: return "不支援的檔案格式（支援 xlsx、docx）"
         case .fileReadFailed:    return "無法讀取檔案內容"
         case .noDataFound:       return "未能從檔案中找到任何表格資料"
+        case .requiresIOS26:     return "此功能需要 iOS 26 以上"
         }
     }
 }
@@ -46,21 +56,79 @@ enum ParserError: LocalizedError {
 
 struct TourMemberParser {
 
-    // MARK: - 公開入口
+    // MARK: - 公開入口（xlsx / docx）
 
     static func extractTables(from url: URL) throws -> [RawTable] {
         let ext = url.pathExtension.lowercased()
         switch ext {
         case "xlsx": return try extractFromXLSX(url: url)
         case "docx": return try extractFromDOCX(url: url)
-        case "pdf":  return try extractFromPDF(url: url)
         default:     throw ParserError.unsupportedFormat
         }
     }
 
-    static func extractTables(from image: UIImage) async throws -> [RawTable] {
-        let lines = try await recognizeText(from: image)
-        return [RawTable(rows: lines.map { [$0] })]
+    // MARK: - 公開入口（圖片 / PDF，iOS 26 結構化辨識）
+
+    @available(iOS 26, *)
+    static func recognizeStructured(from image: UIImage) async throws -> StructuredOCRTable {
+        guard let cgImage = image.cgImage else { throw ParserError.fileReadFailed }
+        return try await recognizeStructured(cgImages: [cgImage])
+    }
+
+    @available(iOS 26, *)
+    static func recognizeStructured(fromPDF url: URL) async throws -> StructuredOCRTable {
+        guard let doc = PDFDocument(url: url) else { throw ParserError.fileReadFailed }
+        var images: [CGImage] = []
+        for i in 0..<doc.pageCount {
+            guard let page = doc.page(at: i) else { continue }
+            if let cg = renderPDFPage(page, scale: 2.0) {
+                images.append(cg)
+            }
+        }
+        guard !images.isEmpty else { throw ParserError.fileReadFailed }
+        return try await recognizeStructured(cgImages: images)
+    }
+
+    // MARK: - iOS 26 RecognizeDocumentsRequest
+
+    @available(iOS 26, *)
+    private static func recognizeStructured(cgImages: [CGImage]) async throws -> StructuredOCRTable {
+        var rawRows: [[String]] = []
+        let request = RecognizeDocumentsRequest()
+
+        for cgImage in cgImages {
+            let observations = try await request.perform(on: cgImage)
+            guard let document = observations.first?.document else { continue }
+            for table in document.tables {
+                for row in table.rows {
+                    let cells = Array(row).map {
+                        $0.content.text.transcript
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                    if cells.contains(where: { !$0.isEmpty }) {
+                        rawRows.append(cells)
+                    }
+                }
+            }
+        }
+
+        guard !rawRows.isEmpty else { throw ParserError.noDataFound }
+        return StructuredOCRTable(table: RawTable(rows: rawRows))
+    }
+
+    @available(iOS 26, *)
+    private static func renderPDFPage(_ page: PDFPage, scale: CGFloat) -> CGImage? {
+        let pageRect = page.bounds(for: .mediaBox)
+        let size = CGSize(width: pageRect.width * scale, height: pageRect.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            ctx.cgContext.translateBy(x: 0, y: size.height)
+            ctx.cgContext.scaleBy(x: scale, y: -scale)
+            page.draw(with: .mediaBox, to: ctx.cgContext)
+        }
+        return image.cgImage
     }
 
     // MARK: - XLSX
@@ -206,58 +274,6 @@ struct TourMemberParser {
 
         guard !tables.isEmpty else { throw ParserError.noDataFound }
         return tables
-    }
-
-    // MARK: - PDF（目前 UI 不會觸發，保留備用）
-
-        private static func extractFromPDF(url: URL) throws -> [RawTable] {
-            guard let doc = PDFDocument(url: url) else {
-                throw ParserError.fileReadFailed
-            }
-
-            var lines: [String] = []
-            for i in 0..<doc.pageCount {
-                guard let page = doc.page(at: i), let text = page.string else { continue }
-                let pageLines = text
-                    .components(separatedBy: "\n")
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                lines.append(contentsOf: pageLines)
-            }
-
-            guard !lines.isEmpty else { throw ParserError.noDataFound }
-            return [RawTable(rows: lines.map { [$0] })]
-        }
-
-    // MARK: - Vision OCR
-
-    private static func recognizeText(from image: UIImage) async throws -> [String] {
-        guard let cgImage = image.cgImage else { throw ParserError.fileReadFailed }
-
-        return try await withCheckedThrowingContinuation { continuation in
-            let request = VNRecognizeTextRequest { req, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                let lines = req.results?
-                    .compactMap { $0 as? VNRecognizedTextObservation }
-                    .compactMap { $0.topCandidates(1).first?.string }
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                    ?? []
-                continuation.resume(returning: lines)
-            }
-            request.recognitionLevel = .accurate
-            request.recognitionLanguages = ["zh-Hant", "zh-Hans", "en-US"]
-            request.usesLanguageCorrection = true
-
-            do {
-                try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
-            } catch {
-                continuation.resume(throwing: error)
-            }
-        }
     }
 
     // MARK: - 表格分割
@@ -488,7 +504,10 @@ private class DocXMLParser: NSObject, XMLParserDelegate {
                 namespaceURI: String?, qualifiedName qName: String?) {
         switch el {
         case "p":
-            if inCell { currentCell += currentText }
+            if inCell {
+                if !currentCell.isEmpty { currentCell += "\n" }
+                currentCell += currentText
+            }
             currentText = ""
         case "tc":
             currentRow.append(currentCell.trimmingCharacters(in: .whitespacesAndNewlines))

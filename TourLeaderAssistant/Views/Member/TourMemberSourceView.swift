@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct TourMemberSourceView: View {
     @Environment(\.modelContext) private var modelContext
@@ -8,14 +9,25 @@ struct TourMemberSourceView: View {
 
     @Query private var allDocuments: [TourDocument]
 
-    // 已上傳的分房表 / 大表
-    private let supportedExtensions = ["xlsx", "docx", "pdf"]
+    // 是否支援 iOS 26 結構化辨識（圖片 + PDF）
+    private var supportsStructuredOCR: Bool {
+        if #available(iOS 26, *) { return true }
+        return false
+    }
+
+    // 在當前 iOS 版本下可解析的文件副檔名
+    private var parseableDocExtensions: [String] {
+        if supportsStructuredOCR { return ["xlsx", "docx", "pdf"] }
+        return ["xlsx", "docx"]
+    }
+
+    private let imageExtensions = ["jpg", "jpeg", "png", "heic"]
 
     var roomingDocs: [TourDocument] {
         allDocuments.filter {
             $0.teamID == team.id &&
             $0.category == .roomingList &&
-            supportedExtensions.contains($0.resolvedURL.pathExtension.lowercased())
+            parseableDocExtensions.contains($0.resolvedURL.pathExtension.lowercased())
         }
         .sorted { $0.createdAt > $1.createdAt }
     }
@@ -23,11 +35,10 @@ struct TourMemberSourceView: View {
         allDocuments.filter {
             $0.teamID == team.id &&
             $0.category == .guestList &&
-            supportedExtensions.contains($0.resolvedURL.pathExtension.lowercased())
+            parseableDocExtensions.contains($0.resolvedURL.pathExtension.lowercased())
         }
         .sorted { $0.createdAt > $1.createdAt }
     }
-    private let imageExtensions = ["jpg", "jpeg", "png", "heic"]
 
     var roomingImages: [TourDocument] {
         allDocuments.filter {
@@ -65,34 +76,59 @@ struct TourMemberSourceView: View {
     @State private var showingPreview = false
     @State private var rawTables: [RawTable] = []
     @State private var showingRawPreview = false
-    @State private var showingOCRMapping = false
-    @State private var ocrLines: [String] = []
+    @State private var structuredResult: StructuredOCRTable? = nil
+    @State private var showingStructuredPreview = false
 
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
+
+    // 檔案匯入接受的型別
+    private var allowedFilePickerTypes: [UTType] {
+        var types: [UTType] = [
+            .spreadsheet,
+            UTType(filenameExtension: "docx") ?? .data,
+            UTType(filenameExtension: "xlsx") ?? .data
+        ]
+        if supportsStructuredOCR {
+            types.append(.pdf)
+            types.append(.image)
+        }
+        return types
+    }
 
     var body: some View {
         ZStack {
             Color("AppBackground").ignoresSafeArea()
 
             List {
-                // ── 從文件解析 ──
+                // ── 從檔案解析 ──
                 Section {
                     if hasAnyDoc {
-                        // 分房表（排除 PDF）
-                        ForEach(roomingDocs.filter { $0.resolvedURL.pathExtension.lowercased() != "pdf" }) { doc in
+                        ForEach(roomingDocs) { doc in
                             docRow(doc: doc, badge: "分房表")
                         }
-                        // 團體大表（排除 PDF）
-                        ForEach(guestDocs.filter { $0.resolvedURL.pathExtension.lowercased() != "pdf" }) { doc in
+                        ForEach(guestDocs) { doc in
                             docRow(doc: doc, badge: "團體大表")
                         }
-                    } else {
-                        // 沒有文件：提示上傳
+                    }
+
+                    // iOS 26+ 才顯示已上傳圖片
+                    if supportsStructuredOCR && hasAnyImage {
+                        ForEach(roomingImages) { doc in
+                            imageDocRow(doc: doc, badge: "分房表")
+                        }
+                        ForEach(guestImages) { doc in
+                            imageDocRow(doc: doc, badge: "團體大表")
+                        }
+                    }
+
+                    if !hasAnyDoc && !(supportsStructuredOCR && hasAnyImage) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("尚無可解析的文件")
                                 .font(.subheadline)
                                 .foregroundStyle(Color(.systemGray))
-                            Text("請上傳分房表或團體大表")
+                            Text(supportsStructuredOCR
+                                 ? "請上傳分房表、團體大表，或 PDF / 圖片"
+                                 : "請上傳分房表或團體大表")
                                 .font(.caption)
                                 .foregroundStyle(Color(.systemGray3))
                         }
@@ -100,7 +136,6 @@ struct TourMemberSourceView: View {
                         .listRowBackground(Color("AppCard"))
                     }
 
-                    // 上傳按鈕（永遠顯示）
                     Button {
                         showingFilePicker = true
                     } label: {
@@ -115,67 +150,57 @@ struct TourMemberSourceView: View {
                     .listRowBackground(Color("AppCard"))
 
                 } header: {
-                    sectionHeader(icon: "doc.fill", title: "從文件解析")
+                    sectionHeader(icon: "doc.fill", title: "從檔案解析")
                 } footer: {
-                    Text("支援 xlsx、docx 格式（PDF 暫不支援自動解析，請用截圖方式讀取）")
+                    Text(supportsStructuredOCR
+                         ? "支援 xlsx、docx、pdf、jpg、png、heic"
+                         : "支援 xlsx、docx 格式（圖片 / PDF 解析需 iOS 26+）")
                         .font(.caption2)
                 }
 
-                // ── 從圖片解析 ──
-                        Section {
-                            // 已上傳的圖片
-                            if !roomingImages.isEmpty || !guestImages.isEmpty {
-                                ForEach(roomingImages) { doc in
-                                    imageDocRow(doc: doc, badge: "分房表")
-                                }
-                                ForEach(guestImages) { doc in
-                                    imageDocRow(doc: doc, badge: "團體大表")
-                                }
+                // ── 相機與相簿（iOS 26+）──
+                if supportsStructuredOCR {
+                    Section {
+                        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.title3)
+                                    .foregroundStyle(Color(hex: "2DB8A8"))
+                                    .frame(width: 32)
+                                Text("從相簿選取")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
                             }
-
-                            // 從相簿
-                            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "photo.on.rectangle")
-                                .font(.title3)
-                                .foregroundStyle(Color(hex: "2DB8A8"))
-                                .frame(width: 32)
-                            Text("從相簿選取")
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
-                    }
-                    .listRowBackground(Color("AppCard"))
+                        .listRowBackground(Color("AppCard"))
 
-                    // 相機
-                    Button {
-                        showingCamera = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "camera.fill")
-                                .font(.title3)
-                                .foregroundStyle(Color(hex: "2DB8A8"))
-                                .frame(width: 32)
-                            Text("用相機拍攝")
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
+                        Button {
+                            showingCamera = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "camera.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(Color(hex: "2DB8A8"))
+                                    .frame(width: 32)
+                                Text("用相機拍攝")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                            }
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
+                        .listRowBackground(Color("AppCard"))
+                    } header: {
+                        sectionHeader(icon: "camera", title: "相機與相簿")
+                    } footer: {
+                        Text("拍攝表格照片自動辨識欄位，建議在光線充足處拍攝")
+                            .font(.caption2)
                     }
-                    .listRowBackground(Color("AppCard"))
-
-                } header: {
-                    sectionHeader(icon: "photo", title: "從圖片解析")
-                } footer: {
-                    Text("支援 jpg、png、heic 格式，建議在光線充足處拍攝")
-                        .font(.caption2)
                 }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
 
-            // 解析中 overlay
             if isParsing {
                 Color.black.opacity(0.3).ignoresSafeArea()
                 VStack(spacing: 16) {
@@ -194,25 +219,20 @@ struct TourMemberSourceView: View {
         .navigationTitle("解析名單")
         .navigationBarTitleDisplayMode(.inline)
 
-        // 文件選取
         .fileImporter(
             isPresented: $showingFilePicker,
-            allowedContentTypes: [.spreadsheet, .pdf,
-                                  .init(filenameExtension: "docx")!,
-                                  .init(filenameExtension: "xlsx")!],
+            allowedContentTypes: allowedFilePickerTypes,
             allowsMultipleSelection: false
         ) { result in
             handleFileImport(result: result)
         }
 
-        // 選完類別後儲存
         .confirmationDialog("這份文件是？", isPresented: $showingCategoryPicker, titleVisibility: .visible) {
             Button("分房表") { savePendingFile(as: .roomingList) }
             Button("團體大表") { savePendingFile(as: .guestList) }
             Button("取消", role: .cancel) { pendingFileURL = nil }
         }
 
-        // 相機
         .fullScreenCover(isPresented: $showingCamera) {
             CameraView { image in
                 showingCamera = false
@@ -221,7 +241,6 @@ struct TourMemberSourceView: View {
             .appDynamicTypeSize(textSizePreference)
         }
 
-        // 相簿選取後解析
         .onChange(of: selectedPhotoItem) { _, newItem in
             guard let newItem else { return }
             Task {
@@ -233,7 +252,6 @@ struct TourMemberSourceView: View {
             }
         }
 
-        // 解析錯誤
         .alert("解析失敗", isPresented: .constant(parseError != nil)) {
             Button("確定") { parseError = nil }
         } message: {
@@ -251,8 +269,8 @@ struct TourMemberSourceView: View {
         .navigationDestination(isPresented: $showingRawPreview) {
             rawPreviewDestination
         }
-        .navigationDestination(isPresented: $showingOCRMapping) {
-            ocrMappingDestination
+        .navigationDestination(isPresented: $showingStructuredPreview) {
+            structuredPreviewDestination
         }
     }
 
@@ -263,7 +281,6 @@ struct TourMemberSourceView: View {
             parseDocument(doc)
         } label: {
             HStack(spacing: 12) {
-                // 副檔名標籤
                 Text(doc.resolvedURL.pathExtension.uppercased())
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.white)
@@ -293,49 +310,88 @@ struct TourMemberSourceView: View {
         }
         .listRowBackground(Color("AppCard"))
     }
-    
+
     private func imageDocRow(doc: TourDocument, badge: String) -> some View {
-            Button {
-                guard let image = UIImage(contentsOfFile: doc.resolvedURL.path) else {
-                    parseError = "無法讀取圖片"
-                    return
-                }
-                parseImage(image)
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "photo")
-                        .font(.title3)
-                        .foregroundStyle(Color(hex: "2DB8A8"))
-                        .frame(width: 46)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(doc.fileName)
-                            .font(.subheadline)
-                            .lineLimit(1)
-                            .foregroundStyle(.primary)
-                        Text(badge)
-                            .font(.caption)
-                            .foregroundStyle(Color(.systemGray))
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(Color(.systemGray3))
-                }
-                .padding(.vertical, 3)
+        Button {
+            guard let image = UIImage(contentsOfFile: doc.resolvedURL.path) else {
+                parseError = "無法讀取圖片"
+                return
             }
-            .listRowBackground(Color("AppCard"))
-        }
+            parseImage(image)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "photo")
+                    .font(.title3)
+                    .foregroundStyle(Color(hex: "2DB8A8"))
+                    .frame(width: 46)
 
-    // MARK: - 解析文件
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(doc.fileName)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                        .foregroundStyle(.primary)
+                    Text(badge)
+                        .font(.caption)
+                        .foregroundStyle(Color(.systemGray))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Color(.systemGray3))
+            }
+            .padding(.vertical, 3)
+        }
+        .listRowBackground(Color("AppCard"))
+    }
+
+    // MARK: - 解析
 
     private func parseDocument(_ doc: TourDocument) {
+        let url = doc.resolvedURL
+        let ext = url.pathExtension.lowercased()
+
+        if ext == "pdf" {
+            guard supportsStructuredOCR else {
+                parseError = "PDF 解析需 iOS 26 以上"
+                return
+            }
+            isParsing = true
+            Task {
+                if #available(iOS 26, *) {
+                    do {
+                        let result = try await TourMemberParser.recognizeStructured(fromPDF: url)
+                        await MainActor.run {
+                            structuredResult = result
+                            isParsing = false
+                            showingStructuredPreview = true
+                        }
+                    } catch {
+                        await MainActor.run {
+                            isParsing = false
+                            parseError = error.localizedDescription
+                        }
+                    }
+                }
+            }
+            return
+        }
+
+        if imageExtensions.contains(ext) {
+            guard let image = UIImage(contentsOfFile: url.path) else {
+                parseError = "無法讀取圖片"
+                return
+            }
+            parseImage(image)
+            return
+        }
+
+        // xlsx / docx
         isParsing = true
         Task {
             do {
-                let tables = try TourMemberParser.extractTables(from: doc.resolvedURL)
+                let tables = try TourMemberParser.extractTables(from: url)
                 await MainActor.run {
                     rawTables = tables
                     isParsing = false
@@ -350,24 +406,26 @@ struct TourMemberSourceView: View {
         }
     }
 
-    // MARK: - 解析圖片
-
     private func parseImage(_ image: UIImage) {
+        guard supportsStructuredOCR else {
+            parseError = "圖片解析需 iOS 26 以上"
+            return
+        }
         isParsing = true
         Task {
-            do {
-                let tables = try await TourMemberParser.extractTables(from: image)
-                let lines = tables.flatMap { $0.rows.map { $0.joined(separator: " ") } }
-                    .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-                await MainActor.run {
-                    ocrLines = lines
-                    isParsing = false
-                    showingOCRMapping = true
-                }
-            } catch {
-                await MainActor.run {
-                    isParsing = false
-                    parseError = error.localizedDescription
+            if #available(iOS 26, *) {
+                do {
+                    let result = try await TourMemberParser.recognizeStructured(from: image)
+                    await MainActor.run {
+                        structuredResult = result
+                        isParsing = false
+                        showingStructuredPreview = true
+                    }
+                } catch {
+                    await MainActor.run {
+                        isParsing = false
+                        parseError = error.localizedDescription
+                    }
                 }
             }
         }
@@ -380,7 +438,6 @@ struct TourMemberSourceView: View {
         guard url.startAccessingSecurityScopedResource() else { return }
         defer { url.stopAccessingSecurityScopedResource() }
 
-        // 先暫存 URL（需要複製到 App 沙盒）
         let tempDir = FileManager.default.temporaryDirectory
         let tempURL = tempDir.appendingPathComponent(url.lastPathComponent)
         try? FileManager.default.removeItem(at: tempURL)
@@ -413,7 +470,6 @@ struct TourMemberSourceView: View {
             )
             modelContext.insert(doc)
 
-            // 存完直接解析
             parseDocument(doc)
 
         } catch {
@@ -424,8 +480,7 @@ struct TourMemberSourceView: View {
 
     // MARK: - 輔助
 
-
-        private func extensionColor(_ ext: String) -> Color {
+    private func extensionColor(_ ext: String) -> Color {
         switch ext.lowercased() {
         case "pdf": return Color(hex: "E8650A")
         case "doc", "docx": return Color(hex: "5B8CDB")
@@ -445,7 +500,7 @@ struct TourMemberSourceView: View {
         }
         .padding(.vertical, 2)
     }
-    
+
     @ViewBuilder
     private var rawPreviewDestination: some View {
         TourMemberRawPreviewView(
@@ -459,14 +514,18 @@ struct TourMemberSourceView: View {
     }
 
     @ViewBuilder
-    private var ocrMappingDestination: some View {
-        TourMemberOCRMappingView(
-            team: team,
-            ocrLines: ocrLines
-        ) { members in
-            parsedMembers = members
-            showingOCRMapping = false
-            showingPreview = true
+    private var structuredPreviewDestination: some View {
+        if let result = structuredResult {
+            TourMemberStructuredPreviewView(
+                team: team,
+                result: result
+            ) { members in
+                parsedMembers = members
+                showingStructuredPreview = false
+                showingPreview = true
+            }
+        } else {
+            EmptyView()
         }
     }
 }

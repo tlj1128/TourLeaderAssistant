@@ -5,6 +5,39 @@
 
 ---
 
+## Build 15 — 2026/05/03–04
+
+### 新增功能
+
+**團員名單 OCR 升級到 iOS 26 `RecognizeDocumentsRequest`**
+
+- 圖片 / PDF 解析改走 iOS 26 Vision 結構化辨識，直接拿到表格（rows × cells）；iOS 18–25 圖片 / PDF / 相機入口整個隱藏，只露 xlsx / docx
+- 設計原則：1 Vision row = 1 RawTable row，cell 內 `\n` 保留不展開，由 mapper 用 field type 自行決定怎麼吃多行 cell
+- 新 `TourMemberStructuredPreviewView`（iOS 26 cell 流程專屬 preview），cell 多行直接 `lineLimit(nil) + fixedSize` 撐高
+- autodetect：`looksLikeHeaderRow`（每 cell 看第一行是否為 ≤ 8 字 label）+ `detectField`（內容驅動，偵測護照三合一、英中合一、單行身分證、序號等）
+- 上傳檔案 picker（iOS 26+）多收 `pdf / jpg / png / heic`；新增「相機與相簿」section（iOS 26+）
+
+**新欄位類型**
+
+- `.passportFull`：護照號碼 + 發照日 + 效期 三合一單欄多行（從多行 cell 抽號碼 + 取最大日期當效期）
+- `.nationalID`：台灣身分證；首位數字 1=M、2=F；只在 `.gender` 為 nil 時補
+- `.remarkEssential`：備註（僅需求）— 過濾保留含關鍵字的行（機位 / 房 / 餐 / 飲食 / 過敏 / 輪椅…），地址電話自動丟掉
+- `.passportExpiry` 升級支援多行 cell（取最大日期）
+- 下拉選單順序重排：略過 → 姓名 → 個資 → 護照 → 房 / 備註，`.remarkEssential` 排 `.remark` 前
+
+### 功能調整 / 修復
+
+- **DocXMLParser bug 修**：同一 `<tc>` 內多個 `<p>` 改用 `\n` 串接（之前段落會黏在一起，跟 Vision / xlsx 多行 cell 處理不一致）
+- 移除舊 `VNRecognizeTextRequest` 圖片 OCR 路徑（連同 `TourMemberOCRMappingView` 整支砍）
+- 移除 `PDFParseSpike` 與 SettingsView 內對應的 Debug 入口
+
+### 已知議題（下次 session 接手）
+
+- **中文姓名 OCR 準確度** — `0919團體總表.pdf` 實測 16 筆裡 6 筆中文名字有誤（preview 可手改）。可考慮：PDF render scale 從 2.0 拉到 3.0、相機路徑加 `VNDocumentCameraViewController` 透視校正、拍照前 UI 指引（光線 / 對齊）、`RecognizeDocumentsRequest` 是否有 language hint 待查
+- **Member 1 被吃掉** — 當 Vision 把第二行 header 跟第一筆團員 cell 合併時（如 `0919團體總表.pdf`），autodetect 會把整列判定為表頭跳過，造成 member 1 missing。User 已接受 workaround：在最終 `TourMemberPreviewView` 手動補，或把 dataStartRow 往前推一格容忍髒資料
+
+---
+
 ## Build 14 — 2026/04/27–28
 
 ### 新增功能
