@@ -75,6 +75,9 @@ struct TeamListView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .navigationDestination(for: Team.self) { team in
+                        TeamWorkspaceView(team: team)
+                    }
                 }
             }
             .navigationTitle("我的團體")
@@ -119,9 +122,7 @@ struct TeamListView: View {
     // MARK: - Components
 
     private func teamCard(_ team: Team) -> some View {
-        NavigationLink {
-            TeamWorkspaceView(team: team)
-        } label: {
+        NavigationLink(value: team) {
             TeamRowView(team: team)
                 .contentShape(RoundedRectangle(cornerRadius: 14))
         }

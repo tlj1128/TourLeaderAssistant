@@ -137,6 +137,7 @@ struct AddJournalView: View {
             content: content.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         modelContext.insert(journal)
+        try? modelContext.save()
         dismiss()
     }
 }

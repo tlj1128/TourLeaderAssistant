@@ -26,25 +26,27 @@ struct TeamWorkspaceView: View {
         "dietary_\(team.id)_\(memberID)"
     }
 
-    @Query private var funds: [TourFund]
-    @Query private var allExpenses: [Expense]
-    @Query private var allMembers: [TourMember]
+    @Query private var teamFunds: [TourFund]
+    @Query private var teamExpenses: [Expense]
+    @Query private var teamMembers: [TourMember]
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
     @AppStorage("useLocalAI") private var useLocalAI = false
 
-    var teamFunds: [TourFund] { funds.filter { $0.teamID == team.id } }
+    init(team: Team) {
+        self.team = team
+        let teamID = team.id
+        _teamFunds = Query(filter: #Predicate<TourFund> { $0.teamID == teamID })
+        _teamExpenses = Query(filter: #Predicate<Expense> { $0.teamID == teamID })
+        _teamMembers = Query(filter: #Predicate<TourMember> { $0.teamID == teamID }, sort: \.sortOrder)
+    }
 
     var pettyCash: TourFund? { teamFunds.first { $0.typeName == "零用金" } }
 
     var totalConverted: Decimal {
-        allExpenses.filter { $0.teamID == team.id }.reduce(0) { $0 + $1.convertedAmount }
+        teamExpenses.reduce(0) { $0 + $1.convertedAmount }
     }
 
     var pettyCashBalance: Decimal { (pettyCash?.initialAmount ?? 0) - totalConverted }
-
-    var teamMembers: [TourMember] {
-        allMembers.filter { $0.teamID == team.id }.sorted { $0.sortOrder < $1.sortOrder }
-    }
 
     var birthdayMembers: [TourMember] {
         teamMembers.filter {

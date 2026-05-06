@@ -46,34 +46,72 @@ class PlaceHotel {
     // 有中文名稱時顯示於副標題
     var displaySubtitle: String? { nameZH.isEmpty ? nil : nameZH }
 
+    @MainActor
     var floorsAndHours: FloorsAndHours {
-        get { Self.decode(FloorsAndHours.self, from: floorsAndHoursData) ?? FloorsAndHours() }
-        set { floorsAndHoursData = Self.encode(newValue) }
+        get {
+            guard let data = floorsAndHoursData.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(FloorsAndHours.self, from: data) else {
+                return FloorsAndHours()
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                floorsAndHoursData = string
+            }
+        }
     }
 
+    @MainActor
     var wifi: HotelWifi {
-        get { Self.decode(HotelWifi.self, from: wifiData) ?? HotelWifi() }
-        set { wifiData = Self.encode(newValue) }
+        get {
+            guard let data = wifiData.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(HotelWifi.self, from: data) else {
+                return HotelWifi()
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                wifiData = string
+            }
+        }
     }
 
+    @MainActor
     var phoneDialing: PhoneDialing {
-        get { Self.decode(PhoneDialing.self, from: phoneDialingData) ?? PhoneDialing() }
-        set { phoneDialingData = Self.encode(newValue) }
+        get {
+            guard let data = phoneDialingData.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(PhoneDialing.self, from: data) else {
+                return PhoneDialing()
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                phoneDialingData = string
+            }
+        }
     }
 
+    @MainActor
     var amenities: HotelAmenities {
-        get { Self.decode(HotelAmenities.self, from: amenitiesData) ?? HotelAmenities() }
-        set { amenitiesData = Self.encode(newValue) }
+        get {
+            guard let data = amenitiesData.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(HotelAmenities.self, from: data) else {
+                return HotelAmenities()
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                amenitiesData = string
+            }
+        }
     }
 
-    private nonisolated static func decode<T: Decodable>(_ type: T.Type, from string: String) -> T? {
-        guard let data = string.data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(type, from: data)
-    }
-
-    private nonisolated static func encode<T: Encodable>(_ value: T) -> String {
-        guard let data = try? JSONEncoder().encode(value),
-              let string = String(data: data, encoding: .utf8) else { return "{}" }
-        return string
-    }
 }

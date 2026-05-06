@@ -145,6 +145,7 @@ struct AddAttractionView: View {
         attraction.allowedItems = allowedItems.trimmingCharacters(in: .whitespaces)
         attraction.notes = notes.trimmingCharacters(in: .whitespaces)
         modelContext.insert(attraction)
+        try? modelContext.save()
         dismiss()
     }
 }

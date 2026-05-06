@@ -5,7 +5,7 @@
 
 ---
 
-## Build 15 — 2026/05/03–04
+## Build 15 — 2026/05/03–06
 
 ### 新增功能
 
@@ -30,11 +30,20 @@
 - **DocXMLParser bug 修**：同一 `<tc>` 內多個 `<p>` 改用 `\n` 串接（之前段落會黏在一起，跟 Vision / xlsx 多行 cell 處理不一致）
 - 移除舊 `VNRecognizeTextRequest` 圖片 OCR 路徑（連同 `TourMemberOCRMappingView` 整支砍）
 - 移除 `PDFParseSpike` 與 SettingsView 內對應的 Debug 入口
+- **SwiftData 效能重構**：移除 `TeamWorkspaceView` 與 `ExpenseListView` 中導致全表掃描的 `@Query`，改用 `init(team:)` 配合 `#Predicate` 在 SQLite 層級精準過濾單團資料
+- **NavigationLink 升級**：`TeamListView` 從舊版 `NavigationLink(destination:)` 改為 `NavigationLink(value:)` + `.navigationDestination`，解決急切初始化導致的點擊失效與不必要資源消耗
+- **SwiftData 關聯更新延遲修復**：`CityPickerView` / `CityManagementView` 新增城市後補上 `try? modelContext.save()`，解決新增後列表不秒顯示的 Bug
 
-### 已知議題（下次 session 接手）
+### 規劃調整（2026/05/06）
+
+- Phase 6 範圍擴充，提前納入：景點廁所及細節資料欄位擴充、UI/UX 調整、Vercel 基礎建設（API key proxy、app config 控制端、意見回饋後台、進階會員審核後台）、In-app Landing Page
+- 新增待處理：AI 飲食禁忌超譯（Foundation Model 指令遵從不穩，飲食過敏有安全風險，考慮移除 AI 補充路徑）
+- Phase 8 移除 Vercel 基礎建設條目；Phase 9 移除景點廁所欄位擴充條目
+
+### 已知議題
 
 - **中文姓名 OCR 準確度** — `0919團體總表.pdf` 實測 16 筆裡 6 筆中文名字有誤（preview 可手改）。可考慮：PDF render scale 從 2.0 拉到 3.0、相機路徑加 `VNDocumentCameraViewController` 透視校正、拍照前 UI 指引（光線 / 對齊）、`RecognizeDocumentsRequest` 是否有 language hint 待查
-- **Member 1 被吃掉** — 當 Vision 把第二行 header 跟第一筆團員 cell 合併時（如 `0919團體總表.pdf`），autodetect 會把整列判定為表頭跳過，造成 member 1 missing。User 已接受 workaround：在最終 `TourMemberPreviewView` 手動補，或把 dataStartRow 往前推一格容忍髒資料
+- **Member 1 被吃掉** — 當 Vision 把第二行 header 跟第一筆團員 cell 合併時，autodetect 會把整列判定為表頭跳過，造成 member 1 missing。已接受 workaround：在最終 `TourMemberPreviewView` 手動補，或把 dataStartRow 往前推一格容忍髒資料
 
 ---
 

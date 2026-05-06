@@ -202,6 +202,7 @@ struct AddTourFundView: View {
         fund.notes = notes.isEmpty ? nil : notes
 
         modelContext.insert(fund)
+        try? modelContext.save()
 
         if hasPettyCash {
             selectedTypeName = allTypeNames.first { $0 != "零用金" } ?? DefaultFundType.otherName

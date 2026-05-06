@@ -106,6 +106,7 @@ struct CityManagementView: View {
             isPreset: false
         )
         modelContext.insert(city)
+        try? modelContext.save()
         dismissAdd()
     }
 

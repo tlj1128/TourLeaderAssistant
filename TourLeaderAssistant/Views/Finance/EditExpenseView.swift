@@ -335,7 +335,7 @@ struct EditExpenseView: View {
         _ = existingImages // 已有的照片路徑保留
 
         // 重新建立路徑列表：保留現有路徑 + 新增的照片
-        var updatedPaths = expense.receiptImagePaths.filter { path in
+        let updatedPaths = expense.receiptImagePaths.filter { path in
             ReceiptPhotoManager.shared.loadImage(fileName: path) != nil
         }
         // 新增的照片（receiptImages 比 updatedPaths 多的部分）

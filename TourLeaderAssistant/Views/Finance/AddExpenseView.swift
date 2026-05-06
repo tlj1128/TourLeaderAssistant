@@ -296,6 +296,7 @@ struct AddExpenseView: View {
         expense.receiptImagePaths = paths
 
         modelContext.insert(expense)
+        try? modelContext.save()
         dismiss()
     }
 }

@@ -142,6 +142,7 @@ struct AddRestaurantView: View {
         restaurant.specialty = specialty.trimmingCharacters(in: .whitespaces)
         restaurant.notes = notes.trimmingCharacters(in: .whitespaces)
         modelContext.insert(restaurant)
+        try? modelContext.save()
         dismiss()
     }
 }

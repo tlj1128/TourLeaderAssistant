@@ -120,6 +120,7 @@ struct AddHotelView: View {
         hotel.address = address.trimmingCharacters(in: .whitespaces)
         hotel.phone = phone.trimmingCharacters(in: .whitespaces)
         modelContext.insert(hotel)
+        try? modelContext.save()
         dismiss()
     }
 }

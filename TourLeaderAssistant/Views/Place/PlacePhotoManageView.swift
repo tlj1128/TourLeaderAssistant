@@ -234,6 +234,7 @@ struct PlacePhotoManageView: View {
             sortOrder: nextOrder
         )
         modelContext.insert(photo)
+        try? modelContext.save()
         syncMessage = nil
     }
 

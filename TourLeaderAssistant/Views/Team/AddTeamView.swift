@@ -163,6 +163,7 @@ struct AddTeamView: View {
         }
 
         modelContext.insert(team)
+        try? modelContext.save()
 
         if addToCalendar, let calendar = selectedCalendar {
             CalendarManager.shared.addEvent(for: team, to: calendar)

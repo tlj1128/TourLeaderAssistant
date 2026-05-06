@@ -17,7 +17,13 @@ class SupabaseManager {
         else {
             fatalError("SupabaseManager：Info.plist 缺少 SUPABASE_URL 或 SUPABASE_ANON_KEY，請確認 xcconfig 設定正確")
         }
-        client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+        client = SupabaseClient(
+            supabaseURL: url,
+            supabaseKey: key,
+            options: SupabaseClientOptions(
+                auth: .init(emitLocalSessionAsInitialSession: true)
+            )
+        )
     }
 
     // MARK: - 連線測試

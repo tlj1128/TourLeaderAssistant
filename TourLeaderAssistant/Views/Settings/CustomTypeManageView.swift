@@ -48,6 +48,7 @@ struct FundTypeManageView: View {
         guard !trimmed.isEmpty else { return }
         let t = CustomFundType(name: trimmed, sortOrder: customTypes.count)
         modelContext.insert(t)
+        try? modelContext.save()
         newName = ""
     }
 
@@ -109,6 +110,7 @@ struct IncomeTypeManageView: View {
         guard !trimmed.isEmpty else { return }
         let t = CustomIncomeType(name: trimmed, sortOrder: customTypes.count)
         modelContext.insert(t)
+        try? modelContext.save()
         newName = ""
     }
 

@@ -5,30 +5,27 @@ struct ExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
     let team: Team
 
-    @Query private var allExpenses: [Expense]
-    @Query private var allFunds: [TourFund]
+    @Query private var expenses: [Expense]
+    @Query private var teamFunds: [TourFund]
 
     @State private var showingAddExpense = false
     @State private var selectedExpense: Expense? = nil
     @State private var selectedTab: ExpenseTab = .expense
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
 
+    init(team: Team) {
+        self.team = team
+        let teamID = team.id
+        _expenses = Query(filter: #Predicate<Expense> { $0.teamID == teamID }, sort: \.date, order: .reverse)
+        _teamFunds = Query(filter: #Predicate<TourFund> { $0.teamID == teamID })
+    }
+
     enum ExpenseTab {
         case expense, income
     }
 
-    var teamFunds: [TourFund] {
-        allFunds.filter { $0.teamID == team.id }
-    }
-
     var pettyCash: TourFund? {
         teamFunds.first { $0.typeName == "零用金" }
-    }
-
-    var expenses: [Expense] {
-        allExpenses
-            .filter { $0.teamID == team.id }
-            .sorted { $0.date > $1.date }
     }
 
     var totalConverted: Decimal {

@@ -165,6 +165,7 @@ struct AddIncomeView: View {
         income.notes = notes.isEmpty ? nil : notes
 
         modelContext.insert(income)
+        try? modelContext.save()
         dismiss()
     }
 }

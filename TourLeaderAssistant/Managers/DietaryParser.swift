@@ -8,12 +8,16 @@ enum DietaryScope: Codable {
 }
 
 struct DietaryNeed: Identifiable, Codable {
-    let id = UUID()
+    var id = UUID()
     let category: DietaryCategory
     let label: String
     let scope: DietaryScope
     let sortKey: Int
     var isAIGenerated: Bool = false
+    
+    enum CodingKeys: String, CodingKey {
+        case category, label, scope, sortKey, isAIGenerated
+    }
 }
 
 enum DietaryCategory: String, CaseIterable, Codable {

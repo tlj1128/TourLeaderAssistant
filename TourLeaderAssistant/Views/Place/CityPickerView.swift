@@ -126,6 +126,7 @@ struct CityPickerView: View {
             country: country
         )
         modelContext.insert(city)
+        try? modelContext.save()
         dismissAdd()
     }
 

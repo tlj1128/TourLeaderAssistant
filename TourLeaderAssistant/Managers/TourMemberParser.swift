@@ -78,15 +78,46 @@ struct TourMemberParser {
     @available(iOS 26, *)
     static func recognizeStructured(fromPDF url: URL) async throws -> StructuredOCRTable {
         guard let doc = PDFDocument(url: url) else { throw ParserError.fileReadFailed }
-        var images: [CGImage] = []
+        
+        var rawRows: [[String]] = []
+        var request = RecognizeDocumentsRequest()
+        
+        // 保留自動偵測，但提供繁體中文優先的 Hint，並關閉語言校正（防止亂修正人名）
+        request.textRecognitionOptions.recognitionLanguages = [
+            Locale.Language(identifier: "zh-Hant"),
+            Locale.Language(identifier: "en-US")
+        ]
+        request.textRecognitionOptions.useLanguageCorrection = false
+        
         for i in 0..<doc.pageCount {
             guard let page = doc.page(at: i) else { continue }
-            if let cg = renderPDFPage(page, scale: 2.0) {
-                images.append(cg)
+            
+            // 獨立的 autoreleasepool，確保繪圖上下文 (UIGraphicsImageRenderer) 及早釋放記憶體
+            let cgImage: CGImage? = autoreleasepool {
+                // 退回 scale 2.0：實測發現 scale 3.0 會導致 Vision 的模型不適應過大的筆畫，反而將 HUANG 誤判為 HUANC
+                return renderPDFPage(page, scale: 2.3)
+            }
+            
+            guard let validImage = cgImage else { continue }
+            
+            let observations = try await request.perform(on: validImage)
+            guard let document = observations.first?.document else { continue }
+            
+            for table in document.tables {
+                for row in table.rows {
+                    let cells = Array(row).map {
+                        $0.content.text.transcript
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                    if cells.contains(where: { !$0.isEmpty }) {
+                        rawRows.append(cells)
+                    }
+                }
             }
         }
-        guard !images.isEmpty else { throw ParserError.fileReadFailed }
-        return try await recognizeStructured(cgImages: images)
+        
+        guard !rawRows.isEmpty else { throw ParserError.noDataFound }
+        return StructuredOCRTable(table: RawTable(rows: rawRows))
     }
 
     // MARK: - iOS 26 RecognizeDocumentsRequest
@@ -94,7 +125,14 @@ struct TourMemberParser {
     @available(iOS 26, *)
     private static func recognizeStructured(cgImages: [CGImage]) async throws -> StructuredOCRTable {
         var rawRows: [[String]] = []
-        let request = RecognizeDocumentsRequest()
+        var request = RecognizeDocumentsRequest()
+        
+        // 保留自動偵測，但提供繁體中文優先的 Hint，並關閉語言校正（防止亂修正人名）
+        request.textRecognitionOptions.recognitionLanguages = [
+            Locale.Language(identifier: "zh-Hant"),
+            Locale.Language(identifier: "en-US")
+        ]
+        request.textRecognitionOptions.useLanguageCorrection = false
 
         for cgImage in cgImages {
             let observations = try await request.perform(on: cgImage)
