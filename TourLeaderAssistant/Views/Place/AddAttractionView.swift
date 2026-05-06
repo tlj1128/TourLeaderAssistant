@@ -15,6 +15,8 @@ struct AddAttractionView: View {
     @State private var openingHours = ""
     @State private var photographyRules = ""
     @State private var allowedItems = ""
+    @State private var stayDuration = ""
+    @State private var toiletInfo = ""
     @State private var notes = ""
 
     @State private var showingCountryPicker = false
@@ -91,6 +93,23 @@ struct AddAttractionView: View {
             Section("景點資訊") {
                 LabeledTextField(label: "票價", placeholder: "EUR 29.40（成人）", text: $ticketPrice)
                 LabeledTextField(label: "開放時間", placeholder: "09:00–23:00", text: $openingHours)
+                LabeledTextField(label: "建議停留", placeholder: "30–45 分鐘", text: $stayDuration)
+            }
+
+            if UserPermissions.current.satisfies(.verifiedOrVIP) {
+                Section("廁所資訊") {
+                    TextEditor(text: $toiletInfo)
+                        .frame(minHeight: 70)
+                        .overlay(alignment: .topLeading) {
+                            if toiletInfo.isEmpty {
+                                Text("景點內廁所位置、附近免費公廁等資訊")
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.top, 8)
+                                    .padding(.leading, 4)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                }
             }
 
             Section("注意事項") {
@@ -143,6 +162,8 @@ struct AddAttractionView: View {
         attraction.openingHours = openingHours.trimmingCharacters(in: .whitespaces)
         attraction.photographyRules = photographyRules.trimmingCharacters(in: .whitespaces)
         attraction.allowedItems = allowedItems.trimmingCharacters(in: .whitespaces)
+        attraction.stayDuration = stayDuration.trimmingCharacters(in: .whitespaces)
+        attraction.toiletInfo = toiletInfo.trimmingCharacters(in: .whitespaces)
         attraction.notes = notes.trimmingCharacters(in: .whitespaces)
         modelContext.insert(attraction)
         try? modelContext.save()

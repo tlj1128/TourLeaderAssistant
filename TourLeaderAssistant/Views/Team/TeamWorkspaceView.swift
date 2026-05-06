@@ -30,7 +30,6 @@ struct TeamWorkspaceView: View {
     @Query private var teamExpenses: [Expense]
     @Query private var teamMembers: [TourMember]
     @AppStorage("textSizePreference") private var textSizePreference = "standard"
-    @AppStorage("useLocalAI") private var useLocalAI = false
 
     init(team: Team) {
         self.team = team
@@ -257,14 +256,6 @@ struct TeamWorkspaceView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "bell.fill").font(.caption).foregroundStyle(Color(hex: "E8650A"))
                     Text("團員提醒事項").font(.subheadline).fontWeight(.semibold).foregroundStyle(.primary)
-                    if AppConfigManager.shared.isLocalAIEnabled && useLocalAI {
-                        Text("AI")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(Color.purple.opacity(0.7), in: RoundedRectangle(cornerRadius: 3))
-                    }
                     Spacer()
                     if isDietaryLoading {
                         ProgressView().scaleEffect(0.7)
@@ -397,26 +388,12 @@ struct TeamWorkspaceView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // 取得對應 member 的 needs
                 let memberNeeds = dietaryInfoList.first { $0.member.id == entry.member.id }?.needs ?? []
-                let ruleLabels = memberNeeds.filter { !$0.isAIGenerated }.map { $0.label }
-                let aiLabels = memberNeeds.filter { $0.isAIGenerated }.map { $0.label }
+                let labels = memberNeeds.map { $0.label }
 
-                if !ruleLabels.isEmpty {
-                    Text(ruleLabels.joined(separator: "、"))
+                if !labels.isEmpty {
+                    Text(labels.joined(separator: "、"))
                         .font(.subheadline).foregroundStyle(Color(.systemGray))
                         .fixedSize(horizontal: false, vertical: true)
-                }
-                if !aiLabels.isEmpty {
-                    HStack(spacing: 4) {
-                        Text("AI")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.purple.opacity(0.7), in: RoundedRectangle(cornerRadius: 3))
-                        Text(aiLabels.joined(separator: "、"))
-                            .font(.subheadline).foregroundStyle(Color(.systemGray).opacity(0.8))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                 }
             }
         }

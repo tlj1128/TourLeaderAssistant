@@ -16,6 +16,8 @@ struct EditAttractionView: View {
     @State private var openingHours = ""
     @State private var photographyRules = ""
     @State private var allowedItems = ""
+    @State private var stayDuration = ""
+    @State private var toiletInfo = ""
     @State private var notes = ""
 
     @State private var showingCountryPicker = false
@@ -92,6 +94,23 @@ struct EditAttractionView: View {
                 Section("景點資訊") {
                     LabeledTextField(label: "票價", placeholder: "EUR 29.40（成人）", text: $ticketPrice)
                     LabeledTextField(label: "開放時間", placeholder: "09:00–23:00", text: $openingHours)
+                    LabeledTextField(label: "建議停留", placeholder: "30–45 分鐘", text: $stayDuration)
+                }
+
+                if UserPermissions.current.satisfies(.verifiedOrVIP) {
+                    Section("廁所資訊") {
+                        TextEditor(text: $toiletInfo)
+                            .frame(minHeight: 70)
+                            .overlay(alignment: .topLeading) {
+                                if toiletInfo.isEmpty {
+                                    Text("景點內廁所位置、附近免費公廁等資訊")
+                                        .foregroundStyle(.tertiary)
+                                        .padding(.top, 8)
+                                        .padding(.leading, 4)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                    }
                 }
                 
                 Section("注意事項") {
@@ -147,6 +166,8 @@ struct EditAttractionView: View {
         openingHours = attraction.openingHours
         photographyRules = attraction.photographyRules
         allowedItems = attraction.allowedItems
+        stayDuration = attraction.stayDuration
+        toiletInfo = attraction.toiletInfo
         notes = attraction.notes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             isLoading = false
@@ -163,6 +184,8 @@ struct EditAttractionView: View {
         attraction.openingHours = openingHours.trimmingCharacters(in: .whitespaces)
         attraction.photographyRules = photographyRules.trimmingCharacters(in: .whitespaces)
         attraction.allowedItems = allowedItems.trimmingCharacters(in: .whitespaces)
+        attraction.stayDuration = stayDuration.trimmingCharacters(in: .whitespaces)
+        attraction.toiletInfo = toiletInfo.trimmingCharacters(in: .whitespaces)
         attraction.notes = notes.trimmingCharacters(in: .whitespaces)
         attraction.updatedAt = Date()
         attraction.needsSync = true

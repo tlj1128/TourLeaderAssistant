@@ -163,7 +163,7 @@ struct AttractionDetailView: View {
                     }
                 }
 
-                if !attraction.ticketPrice.isEmpty || !attraction.openingHours.isEmpty {
+                if !attraction.ticketPrice.isEmpty || !attraction.openingHours.isEmpty || !attraction.stayDuration.isEmpty {
                     Section("景點資訊") {
                         if !attraction.ticketPrice.isEmpty {
                             LabeledContent("票價", value: attraction.ticketPrice).listRowBackground(Color("AppCard"))
@@ -171,7 +171,25 @@ struct AttractionDetailView: View {
                         if !attraction.openingHours.isEmpty {
                             LabeledContent("開放時間", value: attraction.openingHours).listRowBackground(Color("AppCard"))
                         }
+                        if !attraction.stayDuration.isEmpty {
+                            LabeledContent("建議停留", value: attraction.stayDuration).listRowBackground(Color("AppCard"))
+                        }
                     }
+                }
+
+                Section("廁所資訊") {
+                    AccessGate(requirement: .verifiedOrVIP) {
+                        if attraction.toiletInfo.isEmpty {
+                            Text("尚無資料")
+                                .font(.subheadline)
+                                .foregroundStyle(Color(.systemGray3))
+                        } else {
+                            Text(attraction.toiletInfo)
+                                .font(.subheadline)
+                                .lineSpacing(4)
+                        }
+                    }
+                    .listRowBackground(Color("AppCard"))
                 }
 
                 if !attraction.photographyRules.isEmpty || !attraction.allowedItems.isEmpty || !attraction.notes.isEmpty {

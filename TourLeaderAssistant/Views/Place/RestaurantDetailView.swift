@@ -163,11 +163,15 @@ struct RestaurantDetailView: View {
                     }
                 }
 
-                if !restaurant.cuisine.isEmpty || !restaurant.rating.isEmpty || !restaurant.specialty.isEmpty {
+                if !restaurant.cuisine.isEmpty || !restaurant.rating.isEmpty || !restaurant.specialty.isEmpty
+                    || !restaurant.capacity.isEmpty || !restaurant.paymentMethods.isEmpty || !restaurant.groupDiscount.isEmpty {
                     Section("餐廳資訊") {
                         if !restaurant.cuisine.isEmpty { LabeledContent("菜系", value: restaurant.cuisine).listRowBackground(Color("AppCard")) }
                         if !restaurant.rating.isEmpty { LabeledContent("評價", value: restaurant.rating).listRowBackground(Color("AppCard")) }
                         if !restaurant.specialty.isEmpty { LabeledContent("特色菜", value: restaurant.specialty).listRowBackground(Color("AppCard")) }
+                        if !restaurant.capacity.isEmpty { LabeledContent("容客數", value: restaurant.capacity).listRowBackground(Color("AppCard")) }
+                        if !restaurant.paymentMethods.isEmpty { LabeledContent("付款方式", value: restaurant.paymentMethods).listRowBackground(Color("AppCard")) }
+                        if !restaurant.groupDiscount.isEmpty { LabeledContent("團體優惠", value: restaurant.groupDiscount).listRowBackground(Color("AppCard")) }
                     }
                 }
 

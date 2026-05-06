@@ -14,6 +14,7 @@ class AppConfigManager {
     private let fallbackFeatureMemberList = false
     private let fallbackFeatureLocalAI = false
     private let fallbackFeatureCurrencyPicker = false
+    private let fallbackFeaturePremiumCheck = false
 
     // MARK: - UserDefaults Keys（URL）
     private let keyUserGuideURL = "appConfig_userGuideURL"
@@ -23,6 +24,7 @@ class AppConfigManager {
     private let keyFeatureMemberList = "appConfig_feature_member_list"
     private let keyFeatureLocalAI = "appConfig_feature_local_ai"
     private let keyFeatureCurrencyPicker = "appConfig_feature_currency_picker"
+    private let keyFeaturePremiumCheck = "appConfig_feature_premium_check"
 
     // MARK: - 對外屬性（URL）
     var userGuideURL: URL {
@@ -70,6 +72,19 @@ class AppConfigManager {
         #endif
     }
 
+    // true = 開始執行進階會員 / VIP 限制；false = 全部開放
+    // Debug / TestFlight 預設 false（不限制）；正式上架後從 Supabase 控制
+    var isPremiumCheckEnforced: Bool {
+        #if DEBUG
+        return false
+        #else
+        guard UserDefaults.standard.object(forKey: keyFeaturePremiumCheck) != nil else {
+            return fallbackFeaturePremiumCheck
+        }
+        return UserDefaults.standard.bool(forKey: keyFeaturePremiumCheck)
+        #endif
+    }
+
     private init() {}
 
     // MARK: - 從 Supabase 抓取設定（App 啟動時靜默呼叫）
@@ -93,6 +108,8 @@ class AppConfigManager {
                     UserDefaults.standard.set(row.value == "true", forKey: keyFeatureLocalAI)
                 case "feature_currency_picker":
                     UserDefaults.standard.set(row.value == "true", forKey: keyFeatureCurrencyPicker)
+                case "feature_premium_check":
+                    UserDefaults.standard.set(row.value == "true", forKey: keyFeaturePremiumCheck)
                 default:
                     break
                 }

@@ -14,6 +14,8 @@ class PlaceAttraction {
     var openingHours: String
     var photographyRules: String
     var allowedItems: String
+    var stayDuration: String
+    var toiletInfo: String
     var notes: String
     var createdAt: Date
     var updatedAt: Date
@@ -33,6 +35,8 @@ class PlaceAttraction {
         self.openingHours = ""
         self.photographyRules = ""
         self.allowedItems = ""
+        self.stayDuration = ""
+        self.toiletInfo = ""
         self.notes = ""
         self.createdAt = Date()
         self.updatedAt = Date()

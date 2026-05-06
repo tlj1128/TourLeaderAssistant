@@ -15,6 +15,9 @@ struct EditRestaurantView: View {
     @State private var cuisine = ""
     @State private var rating = ""
     @State private var specialty = ""
+    @State private var capacity = ""
+    @State private var paymentMethods = ""
+    @State private var groupDiscount = ""
     @State private var notes = ""
 
     @State private var showingCountryPicker = false
@@ -92,6 +95,10 @@ struct EditRestaurantView: View {
                     LabeledTextField(label: "菜系", placeholder: "台灣料理、日式", text: $cuisine)
                     LabeledTextField(label: "評價", placeholder: "CP值高，份量大", text: $rating)
                     LabeledTextField(label: "特色菜", placeholder: "小籠包、蛋炒飯", text: $specialty)
+                    LabeledTextField(label: "容客數", placeholder: "120 人", text: $capacity)
+                        .keyboardType(.numberPad)
+                    LabeledTextField(label: "付款方式", placeholder: "現金、Visa、支付寶", text: $paymentMethods)
+                    LabeledTextField(label: "團體優惠", placeholder: "20 人以上九折", text: $groupDiscount)
                 }
                 
                 Section("注意事項") {
@@ -144,6 +151,9 @@ struct EditRestaurantView: View {
         cuisine = restaurant.cuisine
         rating = restaurant.rating
         specialty = restaurant.specialty
+        capacity = restaurant.capacity
+        paymentMethods = restaurant.paymentMethods
+        groupDiscount = restaurant.groupDiscount
         notes = restaurant.notes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             isLoading = false
@@ -159,6 +169,9 @@ struct EditRestaurantView: View {
         restaurant.cuisine = cuisine.trimmingCharacters(in: .whitespaces)
         restaurant.rating = rating.trimmingCharacters(in: .whitespaces)
         restaurant.specialty = specialty.trimmingCharacters(in: .whitespaces)
+        restaurant.capacity = capacity.trimmingCharacters(in: .whitespaces)
+        restaurant.paymentMethods = paymentMethods.trimmingCharacters(in: .whitespaces)
+        restaurant.groupDiscount = groupDiscount.trimmingCharacters(in: .whitespaces)
         restaurant.notes = notes.trimmingCharacters(in: .whitespaces)
         restaurant.updatedAt = Date()
         restaurant.needsSync = true

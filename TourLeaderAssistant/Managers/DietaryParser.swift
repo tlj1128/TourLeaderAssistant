@@ -13,10 +13,9 @@ struct DietaryNeed: Identifiable, Codable {
     let label: String
     let scope: DietaryScope
     let sortKey: Int
-    var isAIGenerated: Bool = false
-    
+
     enum CodingKeys: String, CodingKey {
-        case category, label, scope, sortKey, isAIGenerated
+        case category, label, scope, sortKey
     }
 }
 
@@ -59,32 +58,7 @@ struct DietaryParser {
 
     static func parse(remark: String) async -> [DietaryNeed] {
         guard !remark.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
-
-        var needs = parseWithRules(remark: remark)
-
-        if #available(iOS 26, *) {
-            let useAI = UserDefaults.standard.bool(forKey: "useLocalAI")
-            if useAI && FoundationModelManager.shared.isAvailable {
-                do {
-                    needs = try await withThrowingTaskGroup(of: [DietaryNeed].self) { group in
-                        group.addTask {
-                            try await supplementWithAI(remark: remark, existing: needs)
-                        }
-                        group.addTask {
-                            try await Task.sleep(for: .seconds(5))
-                            throw CancellationError()
-                        }
-                        let result = try await group.next()!
-                        group.cancelAll()
-                        return result
-                    }
-                } catch {
-                    // AI 超時或失敗，維持 rule-based 結果
-                }
-            }
-        }
-
-        return needs
+        return parseWithRules(remark: remark)
     }
 
     // MARK: - Rule-based 主流程
@@ -474,53 +448,4 @@ struct DietaryParser {
         }
     }
 
-    // MARK: - AI 補充路徑
-
-    @available(iOS 26, *)
-    private static func supplementWithAI(remark: String, existing: [DietaryNeed]) async throws -> [DietaryNeed] {
-        let existingLabels = existing.map { $0.label }.joined(separator: "、")
-        let instructions = """
-        你是旅遊領隊助理，負責補充飲食需求解析。
-
-        rule-based 系統已能識別：過敏（花生、海鮮、堅果、麩質、乳糖、蛋）、素食類型、不吃特定肉類、機上特殊餐代碼（MOML/VGML等）、不吃辣、糖尿病飲食、低鈉飲食。
-
-        你的任務：只補充原文中 rule-based 無法識別的需求，例如特殊醫療飲食、不常見的食物限制、自由描述的特殊需求。
-
-        規則：
-        - 如果原文的需求已全部被「已解析」涵蓋，回傳空陣列
-        - 不推論、不猜測，原文沒有明確說明的不補充
-        - 不重複已有的項目
-        - 忽略電話號碼、姓名、日期等無關內容
-        """
-
-        let prompt = "原始備註：\(remark)\n已解析：\(existingLabels.isEmpty ? "（無）" : existingLabels)\n請補充："
-
-        let result = try await FoundationModelManager.shared.generate(
-            prompt: prompt,
-            instructions: instructions,
-            as: AIAnalyzedNeeds.self
-        )
-
-        let existingLabelSet = Set(existing.map { $0.label })
-        let aiNeeds: [DietaryNeed] = result.needs.enumerated().compactMap { idx, need in
-            guard !existingLabelSet.contains(need.label) else { return nil }
-            let category = categoryFromString(need.category)
-            let scope: DietaryScope = need.isAirborne ? .airborne : .tripWide
-            let finalCategory: DietaryCategory = need.isAirborne ? .airlineMeal : category
-            return DietaryNeed(category: finalCategory, label: need.label,
-                               scope: scope, sortKey: existing.count + idx, isAIGenerated: true)
-        }
-
-        return existing + aiNeeds
-    }
-
-    private static func categoryFromString(_ s: String) -> DietaryCategory {
-        switch s {
-        case "過敏":         return .allergy
-        case "素食":         return .vegetarian
-        case "不吃特定食物": return .avoidFood
-        case "機上特殊餐":   return .airlineMeal
-        default:             return .allergy
-        }
-    }
 }

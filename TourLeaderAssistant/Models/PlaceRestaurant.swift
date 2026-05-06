@@ -13,6 +13,9 @@ class PlaceRestaurant {
     var cuisine: String
     var rating: String
     var specialty: String
+    var capacity: String
+    var paymentMethods: String
+    var groupDiscount: String
     var notes: String
     var createdAt: Date
     var updatedAt: Date
@@ -31,6 +34,9 @@ class PlaceRestaurant {
         self.cuisine = ""
         self.rating = ""
         self.specialty = ""
+        self.capacity = ""
+        self.paymentMethods = ""
+        self.groupDiscount = ""
         self.notes = ""
         self.createdAt = Date()
         self.updatedAt = Date()

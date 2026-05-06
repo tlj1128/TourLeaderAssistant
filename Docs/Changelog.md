@@ -5,6 +5,31 @@
 
 ---
 
+## Build 15 — 2026/05/03–06（TestFlight 測試說明）
+
+新功能
+
+【團員名單】正式開放測試
+可以將旅行社的分房表 or 團體大表匯入 App，自動建立本團的完整成員資料。
+支援的檔案格式：
+Excel（.xlsx）、Word（.docx）— iOS 18 以上裝置即可使用
+PDF、圖片（JPG、PNG、HEIC）— 需 iOS 26 以上裝置
+匯入後系統會自動辨識姓名、護照號碼、效期、性別、飲食備註等欄位，可以在確認頁調整對應關係，再一鍵建立所有團員資料。
+
+地點庫欄位新增
+景點：新增「建議停留時間」與「廁所資訊」欄位
+餐廳：新增「容客數」、「付款方式」、「團體優惠」欄位
+
+功能調整
+飲食需求解析為純規則辨識
+資料讀取 & 操作效能提升
+
+已知問題（團員名單匯入）
+PDF / 圖片匯入時，中文姓名辨識偶有錯誤，可在預覽頁手動修正
+少數情況下第一位團員資料可能被誤判為表頭而略過，可在預覽頁手動補入
+
+---
+
 ## Build 15 — 2026/05/03–06
 
 ### 新增功能
@@ -33,6 +58,28 @@
 - **SwiftData 效能重構**：移除 `TeamWorkspaceView` 與 `ExpenseListView` 中導致全表掃描的 `@Query`，改用 `init(team:)` 配合 `#Predicate` 在 SQLite 層級精準過濾單團資料
 - **NavigationLink 升級**：`TeamListView` 從舊版 `NavigationLink(destination:)` 改為 `NavigationLink(value:)` + `.navigationDestination`，解決急切初始化導致的點擊失效與不必要資源消耗
 - **SwiftData 關聯更新延遲修復**：`CityPickerView` / `CityManagementView` 新增城市後補上 `try? modelContext.save()`，解決新增後列表不秒顯示的 Bug
+
+### 地點庫欄位擴充（2026/05/06）
+
+**景點新欄位**
+- 建議停留時間（例：30–45 分鐘），方便安排行程
+- 廁所資訊：景點內廁所位置、附近免費公廁等，自由文字填寫；未來由進階會員 / VIP 限定查看（目前全開）
+
+**餐廳新欄位**
+- 容客數（確認能否接整個團體）
+- 付款方式（現金 / 刷卡 / 行動支付等）
+- 團體優惠
+
+**權限系統基礎建設**
+- 新增 `AccessControl.swift`（`AccessRequirement` / `UserPermissions` / `AccessGate`）
+- 新增 Supabase app_config key `feature_premium_check`：false = 全開（目前），true = 執行進階 / VIP 資格檢查
+- Phase 6 登入完成後接入真實 user tier，不需重新 build
+
+### 飲食解析調整（2026/05/06）
+
+- 移除 Apple Intelligence 飲食禁忌 AI 補充路徑（`DietaryParserAI.swift` 整支刪除）
+- 飲食解析改為純 rule-based，結果更穩定、無超譯風險
+- 設定頁 Apple Intelligence 開關保留（供未來其他功能使用）
 
 ### 規劃調整（2026/05/06）
 
